@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import JournalActions from '@/components/journal/JournalActions.vue';
 import PeriodFilter from '@/components/journal/PeriodFilter.vue';
 import SeizureTable from '@/components/journal/SeizureTable.vue';
 import { dashboard } from '@/routes';
@@ -46,6 +47,8 @@ const pageLinks = computed(() =>
         </header>
 
         <PeriodFilter :filters="filters" />
+
+        <JournalActions :filters="filters" />
 
         <SeizureTable v-if="seizures.data.length > 0" :rows="seizures.data" />
 

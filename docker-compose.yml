@@ -1,0 +1,126 @@
+services:
+    nginx:
+        image: "nginx:stable-alpine"
+        ports:
+            - "8000:80"
+        restart: unless-stopped
+        volumes:
+            - ./dockerfiles/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+            - .:/var/www/laravel
+        depends_on:
+            - db
+            - php
+        networks:
+            - seizure
+
+    php:
+        build:
+            context: dockerfiles
+            dockerfile: php.Dockerfile
+        restart: unless-stopped
+        volumes:
+            - .:/var/www/laravel
+        networks:
+            - seizure
+
+    db:
+        image: mariadb
+        ports:
+            - "3316:3306"
+        restart: unless-stopped
+        env_file:
+            - .env
+        environment:
+            MYSQL_DATABASE: ${DB_DATABASE}
+            MYSQL_USER: ${DB_USERNAME}
+            MYSQL_PASSWORD: ${DB_PASSWORD}
+            MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+            MYSQL_ALLOW_EMPTY_PASSWORD: YES
+        volumes:
+            - db_data:/var/lib/mysql
+        networks:
+            - seizure
+        command:
+          - --max_allowed_packet=1G
+          - --innodb_buffer_pool_size=2G
+          - --innodb_log_file_size=512M
+
+    phpmyadmin:
+        image: phpmyadmin/phpmyadmin:latest
+        ports:
+            - 8080:80
+        links:
+            - db
+        depends_on:
+            - db
+        restart: unless-stopped
+        environment:
+            PMA_HOST: db
+            PMA_USER: ${DB_USERNAME}
+            PMA_PASSWORD: ${DB_PASSWORD}
+            PMA_ARBITRARY: 1
+            UPLOAD_LIMIT: 640M
+        networks:
+            - seizure
+
+    node:
+        image: node:22-alpine
+        working_dir: /var/www/laravel
+        volumes:
+            - .:/var/www/laravel
+        networks:
+            - seizure
+
+    composer:
+        build:
+            context: dockerfiles
+            dockerfile: composer.Dockerfile
+        volumes:
+            - .:/var/www/laravel
+        networks:
+            - seizure
+
+    artisan:
+        build:
+            context: dockerfiles
+            dockerfile: php.Dockerfile
+        volumes:
+            - .:/var/www/laravel
+        networks:
+            - seizure
+        entrypoint: ["php", "/var/www/laravel/artisan"]
+
+    # Profile: tools — one-shot runners used by humans or by agents
+    # after implementing a feature. Started with:
+    #   docker compose --profile tools run --rm phpunit
+    #   docker compose --profile tools run --rm npm
+    phpunit:
+        profiles: ["tools"]
+        build:
+            context: dockerfiles
+            dockerfile: php.Dockerfile
+        volumes:
+            - .:/var/www/laravel
+        networks:
+            - seizure
+        working_dir: /var/www/laravel
+        entrypoint: ["php", "vendor/bin/phpunit"]
+        depends_on:
+            - db
+
+    npm:
+        profiles: ["tools"]
+        image: node:22-alpine
+        working_dir: /var/www/laravel
+        volumes:
+            - .:/var/www/laravel
+        networks:
+            - seizure
+        entrypoint: ["npm"]
+
+volumes:
+    db_data:
+
+networks:
+    seizure:
+        driver: bridge

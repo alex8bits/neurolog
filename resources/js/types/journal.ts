@@ -16,14 +16,17 @@ export type JournalFilters = {
 };
 
 // Laravel's `LengthAwarePaginator` JSON shape that Inertia passes to the page.
-// Only the fields the client actually reads are typed.
+// `links` is a flat object with first/last/prev/next URLs; the per-page link
+// chips (Previous / page numbers / Next) live under `meta.links`. Only the
+// fields the client actually reads are typed.
 export type Paginated<T> = {
     data: T[];
     links: {
-        url: string | null;
-        label: string;
-        active: boolean;
-    }[];
+        first: string | null;
+        last: string | null;
+        prev: string | null;
+        next: string | null;
+    };
     meta: {
         current_page: number;
         from: number | null;
@@ -32,5 +35,10 @@ export type Paginated<T> = {
         per_page: number;
         to: number | null;
         total: number;
+        links: {
+            url: string | null;
+            label: string;
+            active: boolean;
+        }[];
     };
 };

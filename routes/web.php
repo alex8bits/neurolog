@@ -8,6 +8,9 @@ Route::inertia('/', 'Welcome')->name('home');
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', [SeizureController::class, 'index'])->name('dashboard');
 
+    Route::post('seizures', [SeizureController::class, 'store'])
+        ->name('seizures.store');
+
     Route::patch('seizures/{seizure}', [SeizureController::class, 'update'])
         ->whereNumber('seizure')
         ->name('seizures.update');

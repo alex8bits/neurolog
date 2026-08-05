@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Seizures\EmailDoctorRequest;
 use App\Http\Requests\Seizures\IndexJournalRequest;
+use App\Http\Requests\Seizures\StoreSeizureRequest;
 use App\Http\Requests\Seizures\UpdateSeizureRequest;
 use App\Http\Resources\SeizureRowResource;
 use App\Mail\JournalReport;
@@ -81,6 +82,28 @@ class SeizureController extends Controller
         );
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Запись обновлена.']);
+
+        return back();
+    }
+
+    /**
+     * Create a new seizure for the authenticated user.
+     *
+     * The absence of `occurred_at` falls through to `SeizureMomentNormalizer::normalize()`,
+     * which substitutes `now('UTC')` (concept.md §3.2, research 2026-08-04 §3).
+     */
+    public function store(StoreSeizureRequest $request): RedirectResponse
+    {
+        $this->writer->record(
+            $request->user(),
+            $request->occurredAtInput(),
+            $request->commentInput(),
+        );
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Запись добавлена.',
+        ]);
 
         return back();
     }

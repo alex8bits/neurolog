@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import CreateSeizureDialog from '@/components/journal/CreateSeizureDialog.vue';
 import JournalActions from '@/components/journal/JournalActions.vue';
 import PeriodFilter from '@/components/journal/PeriodFilter.vue';
 import SeizureTable from '@/components/journal/SeizureTable.vue';
+import { Button } from '@/components/ui/button';
 import { dashboard } from '@/routes';
 import type { JournalFilters, Paginated, SeizureRow } from '@/types/journal';
 
@@ -24,10 +26,10 @@ defineOptions({
 });
 
 // Laravel's default paginator mixes numeric page links with HTML-arrow
-// "Previous"/"Next" labels and "..." ellipsis slots. We only render the
-// numeric ones — the first and last page links are enough to navigate.
+// "Previous"/"Next" labels and "..." ellipsis slots. The per-page chips live
+// under `meta.links`; we only render the numeric ones.
 const pageLinks = computed(() =>
-    props.seizures.links.filter(
+    props.seizures.meta.links.filter(
         (link) => link.url !== null && /^\d+$/.test(link.label),
     ),
 );
@@ -49,6 +51,16 @@ const pageLinks = computed(() =>
         <PeriodFilter :filters="filters" />
 
         <JournalActions :filters="filters" />
+
+        <div class="flex items-center justify-end">
+            <CreateSeizureDialog>
+                <template #trigger>
+                    <Button>
+                        + Новая запись
+                    </Button>
+                </template>
+            </CreateSeizureDialog>
+        </div>
 
         <SeizureTable v-if="seizures.data.length > 0" :rows="seizures.data" />
 

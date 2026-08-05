@@ -129,4 +129,74 @@ class JournalTest extends TestCase
             'deleted_at' => null,
         ]);
     }
+
+    public function test_user_can_create_a_seizure_from_the_dashboard(): void
+    {
+        $user = User::factory()->create(['timezone' => 'Europe/Moscow']);
+
+        $response = $this
+            ->actingAs($user)
+            ->from(route('dashboard'))
+            ->post(route('seizures.store'), [
+                'occurred_at' => '2026-05-10T12:15',
+                'comment' => 'Запись из теста',
+            ]);
+
+        $response->assertRedirect(route('dashboard'));
+
+        $this->assertDatabaseHas('seizures', [
+            'user_id' => $user->id,
+            'comment' => 'Запись из теста',
+            // 12:15 в Europe/Moscow (UTC+3 в мае) = 09:15 UTC.
+            'occurred_at' => '2026-05-10 09:15:00',
+        ]);
+
+        $response->assertSessionHas(SessionKey::FLASH_DATA, [
+            'toast' => [
+                'type' => 'success',
+                'message' => 'Запись добавлена.',
+            ],
+        ]);
+
+        // Inertia-редирект после POST не несёт тела страницы — `assertInertia`
+        // применим только к ответу с view. Дёргаем `/dashboard` повторно и
+        // проверяем, что новая запись уже в таблице (это и есть «без перезагрузки»:
+        // Inertia SPA делает тот же GET, что и здесь).
+        $this->actingAs($user)
+            ->get(route('dashboard'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Journal')
+                ->where('seizures.data.0.comment', 'Запись из теста')
+                ->where('seizures.data.0.date', '10.05.2026')
+                ->where('seizures.data.0.time', '12:15')
+                ->etc());
+    }
+
+    public function test_store_defaults_occurred_at_to_now_when_missing(): void
+    {
+        $user = User::factory()->create(['timezone' => 'UTC']);
+
+        $before = now('UTC')->subSeconds(2);
+        $response = $this
+            ->actingAs($user)
+            ->from(route('dashboard'))
+            ->post(route('seizures.store'), [
+                // 'occurred_at' намеренно отсутствует — writer должен подставить now('UTC').
+                'comment' => 'Без даты',
+            ]);
+        $after = now('UTC')->addSeconds(2);
+
+        $response->assertRedirect(route('dashboard'));
+
+        $this->assertDatabaseHas('seizures', [
+            'user_id' => $user->id,
+            'comment' => 'Без даты',
+        ]);
+
+        $seizure = Seizure::firstWhere('comment', 'Без даты');
+        $this->assertTrue(
+            $seizure->occurred_at->between($before, $after),
+            'occurred_at должен попасть в окно вокруг now() UTC (±2 секунды).',
+        );
+    }
 }

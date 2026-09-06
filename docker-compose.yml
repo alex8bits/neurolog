@@ -20,6 +20,11 @@ services:
         restart: unless-stopped
         volumes:
             - .:/var/www/laravel
+            # Laravel writes logs to storage/logs/laravel.log; fluent-bit reads from
+            # /var/log/laravel/laravel.log (see dockerfiles/fluent-bit/fluent-bit.conf).
+            # Bind-mounting the same dir into two containers keeps ownership simple.
+            - ./storage/logs:/var/www/laravel/storage/logs
+            - ./storage/logs:/var/log/laravel
         networks:
             - seizure
 
@@ -118,8 +123,74 @@ services:
             - seizure
         entrypoint: ["npm"]
 
+    # Profile: logs — EFK (Elasticsearch + Fluent Bit + Kibana) for app log shipping.
+    # Started explicitly with:
+    #   docker compose --profile logs up -d
+    # then open Kibana on http://127.0.0.1:5601 (NOT 0.0.0.0 — only loopback is exposed).
+    elasticsearch:
+        profiles: ["logs"]
+        image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+        restart: unless-stopped
+        environment:
+            # Keep ES under ~256m heap so it starts on lean dev boxes.
+            ES_JAVA_OPTS: "-Xms256m -Xmx256m"
+            # Bootstrap checks would refuse dev settings; disable for local-only.
+            discovery.type: single-node
+            xpack.security.enabled: "false"
+            cluster.routing.allocation.disk.threshold_enabled: "false"
+        ulimits:
+            memlock:
+                soft: -1
+                hard: -1
+        volumes:
+            - es_data:/usr/share/elasticsearch/data
+            - ./dockerfiles/elasticsearch/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
+        healthcheck:
+            test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health || exit 1"]
+            interval: 10s
+            timeout: 5s
+            retries: 12
+            start_period: 30s
+        networks:
+            - seizure
+
+    kibana:
+        profiles: ["logs"]
+        image: docker.elastic.co/kibana/kibana:8.13.4
+        restart: unless-stopped
+        # Bind only to loopback so Kibana is not reachable from LAN.
+        ports:
+            - "127.0.0.1:5601:5601"
+        environment:
+            ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+        volumes:
+            - ./dockerfiles/kibana/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+        depends_on:
+            elasticsearch:
+                condition: service_healthy
+        networks:
+            - seizure
+
+    fluent-bit:
+        profiles: ["logs"]
+        image: fluent/fluent-bit:3.1.0
+        restart: unless-stopped
+        # fluent-bit must see laravel.log at the same path configured in fluent-bit.conf.
+        volumes:
+            - ./dockerfiles/fluent-bit/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf:ro
+            - ./dockerfiles/fluent-bit/parsers.conf:/fluent-bit/etc/parsers.conf:ro
+            - ./storage/logs:/var/log/laravel:ro
+            - fb_data:/var/lib/fluent-bit
+        depends_on:
+            elasticsearch:
+                condition: service_healthy
+        networks:
+            - seizure
+
 volumes:
     db_data:
+    es_data:
+    fb_data:
 
 networks:
     seizure:

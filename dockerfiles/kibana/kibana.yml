@@ -1,0 +1,19 @@
+# Minimal Kibana config for local dev.
+# Talks to Elasticsearch over the internal docker network (no auth).
+server.name: "seizure-kibana"
+server.host: "0.0.0.0"
+server.port: 5601
+
+# Where to find Elasticsearch inside the docker network.
+elasticsearch.hosts: ["http://elasticsearch:9200"]
+
+# Disable security prompts and telemetry for a frictionless dev experience.
+xpack.security.enabled: false
+xpack.security.enrollment.enabled: false
+xpack.encryptedSavedObjects.enabled: false
+
+# Skip the "you have no data" friction; we'll add an index pattern manually.
+telemetry.optIn: false
+
+# Kibana ships with sane defaults for English UI; keep it.
+i18n.locale: "en"

@@ -1,0 +1,21 @@
+# Minimal Elasticsearch config for local dev / single-node.
+# - xpack.security disabled on purpose: dev-only, no auth, no TLS.
+# - Single-node discovery, 0 replicas, 1 shard: lean and cheap on RAM.
+cluster.name: "seizure-elk"
+node.name: "es-01"
+
+# Bind only to the docker network; never expose 9200 to the host.
+network.host: 0.0.0.0
+http.port: 9200
+
+discovery.type: single-node
+
+xpack.security.enabled: false
+xpack.security.enrollment.enabled: false
+xpack.security.http.ssl.enabled: false
+xpack.security.transport.ssl.enabled: false
+
+# Persist data outside the container so `docker compose down` does not wipe it.
+# Path is overridden by the bind mount in docker-compose.yml (es_data:/usr/share/elasticsearch/data).
+path.data: /usr/share/elasticsearch/data
+path.logs: /usr/share/elasticsearch/logs

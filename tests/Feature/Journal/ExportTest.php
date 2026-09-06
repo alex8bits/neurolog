@@ -173,6 +173,28 @@ class ExportTest extends TestCase
         });
     }
 
+    public function test_email_doctor_rejects_a_malformed_period_bound(): void
+    {
+        Mail::fake();
+        $user = User::factory()->create();
+        Seizure::factory()->for($user)->create();
+
+        // `?from=garbage` used to reach `CarbonImmutable::parse()` inside
+        // `SeizureQuery::forPeriod()` and produce a 500 — the query bounds
+        // are now validated by `EmailDoctorRequest::validatedPeriod()`.
+        $response = $this->actingAs($user)
+            ->from(route('dashboard'))
+            ->post(route('seizures.email-doctor', ['from' => 'garbage']), [
+                'to' => 'doctor@example.com',
+                'subject' => 'Срочный вопрос',
+                'body' => 'Здравствуйте.',
+            ]);
+
+        $response->assertRedirect(route('dashboard'));
+        $response->assertSessionHasErrorsIn('period', ['from']);
+        Mail::assertNothingSent();
+    }
+
     public function test_guest_cannot_access_export_routes(): void
     {
         $this->get(route('seizures.export'))->assertRedirect(route('login'));

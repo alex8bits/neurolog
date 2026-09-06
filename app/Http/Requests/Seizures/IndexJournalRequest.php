@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Seizures;
 
+use App\Concerns\JournalValidationRules;
 use App\Concerns\ReadsValidatedInput;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -15,6 +16,7 @@ use Illuminate\Foundation\Http\FormRequest;
  */
 class IndexJournalRequest extends FormRequest
 {
+    use JournalValidationRules;
     use ReadsValidatedInput;
 
     /**
@@ -24,10 +26,7 @@ class IndexJournalRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
-            'from' => ['nullable', 'date_format:Y-m-d'],
-            'to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from'],
-        ];
+        return $this->periodRules();
     }
 
     /**

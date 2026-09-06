@@ -25,10 +25,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('journal/print', [SeizureController::class, 'print'])
         ->name('journal.print');
 
+    // Outbound mail is capped per user (throttle keys by user id | ip): both
+    // email actions share one budget of 5 sends per minute.
     Route::post('seizures/email-self', [SeizureController::class, 'emailSelf'])
+        ->middleware('throttle:5,1')
         ->name('seizures.email-self');
 
     Route::post('seizures/email-doctor', [SeizureController::class, 'emailDoctor'])
+        ->middleware('throttle:5,1')
         ->name('seizures.email-doctor');
 });
 

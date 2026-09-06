@@ -203,13 +203,14 @@ class SeizureController extends Controller
      * POST /seizures/email-doctor — email the period DOCX to an arbitrary
      * recipient with optional subject / body overrides.
      *
-     * `from` / `to` arrive as query parameters on the action URL. They are
-     * not part of the {@see EmailDoctorRequest} validation surface (that
-     * request owns the `to` / `subject` / `body` body fields), so we read
-     * them straight from the query bag via `Request::query()`. The values
-     * are not re-validated here — the action URL is always constructed by
-     * the SPA from an already-validated `from` / `to` pair, and a malformed
-     * pair would only widen the report range, not break it.
+     * `from` / `to` arrive as query parameters on the action URL and are
+     * validated by {@see EmailDoctorRequest::validatedPeriod()} — the query
+     * bag is validated separately from the body fields because the query
+     * `to` (a date bound) shares its key with the body `to` (the recipient
+     * address). The action URL is always constructed by the SPA from an
+     * already-validated pair, but an unvalidated bound would make
+     * `SeizureQuery::forPeriod()` throw instead of producing a validation
+     * error.
      *
      * The body is stripped of tags before being passed to the Mailable: the
      * markdown template renders the value as plain text, and user-supplied
@@ -219,15 +220,12 @@ class SeizureController extends Controller
     {
         $user = $request->user();
 
-        $fromRaw = $request->query('from');
-        $toBound = $request->query('to');
-        $from = is_string($fromRaw) && trim($fromRaw) !== '' ? trim($fromRaw) : null;
-        $toDate = is_string($toBound) && trim($toBound) !== '' ? trim($toBound) : null;
+        $period = $request->validatedPeriod();
 
         $report = new SeizurePeriodReport(
             owner: $user,
-            from: $from,
-            to: $toDate,
+            from: $period['from'],
+            to: $period['to'],
             query: $this->query,
         );
 

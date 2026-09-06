@@ -3,7 +3,13 @@
     "compilerOptions": {
         "strict": true,
         "paths": {
-            "@/*": ["./src/*"]
+            "@/*": ["./src/*"],
+            // Expo 57 (ожидает RN 0.86 и interface-типы) несовместим с
+            // types_generated RN 0.87 (стили — type alias, augmentation
+            // из expo/types/react-native-web.d.ts ломает TextStyle/
+            // ViewStyle). Возвращаем типы на легаси-дерево react-native
+            // (types/index.d.ts), которое RN 0.87 продолжает поставлять.
+            "react-native": ["./node_modules/react-native/types/index.d.ts"]
         }
     },
     "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"],

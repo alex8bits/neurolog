@@ -90,7 +90,7 @@ mobile/
 
 Шаги:
 1. `src/api/client.ts`: тонкая обёртка над `fetch` (или `ky`), читает `API_BASE_URL` из `src/config/env.ts`, всегда шлёт `Accept: application/json` и `Content-Type: application/json` где есть тело.
-2. `src/auth/tokens.ts`: чтение/запись/очистка пары токенов в `expo-secure-store` под ключами `auth.access_token` / `auth.refresh_token`. **Никогда** AsyncStorage.
+2. `src/auth/tokens.ts`: чтение/запись/очистка пары токенов в `expo-secure-store`. **Никогда** AsyncStorage. Запись — один ключ `auth.tokens` с атомарным JSON `{ access_token, refresh_token, email }` (решение по итогам этапа 1: два отдельных ключа оставляли бы окно несогласованного состояния при ротации, а email переносится между записями при refresh без повторного входа).
 3. **Единая очередь refresh** (см. [`MOBILE.md`](../MOBILE.md) §7): при получении 401 на защищённом запросе — один-единственный `POST /token/refresh`, подставить новую пару, повторить исходный запрос. Параллельные 401 не плодят параллельных refresh — они ждут в очереди. Если refresh сам вернул 401 — чистим токены и эмитим событие «сессия истекла».
 4. `src/api/auth.ts`: `register`, `login`, `logout`. Маппинг ответов: `data.access_token`, `data.refresh_token`, `data.expires_in`.
 5. `AuthContext` + `useAuth()`: хранит `{ status: 'unknown' | 'anonymous' | 'authed', user? }`, делает bootstrap из SecureStore при старте приложения, пробрасывает методы логина/логаута.

@@ -1,0 +1,12 @@
+<activity-alias
+    android:name=".QuickEntryAlias"
+    android:label="Приступ"
+    android:icon="@mipmap/ic_launcher_quick"
+    android:enabled="true"
+    android:exported="true"
+    android:targetActivity=".MainActivity">
+    <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+    </intent-filter>
+</activity-alias>

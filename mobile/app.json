@@ -18,7 +18,15 @@
                 "backgroundColor": "#ffffff"
             }
         },
-        "plugins": ["expo-router", "expo-secure-store", "expo-localization"],
+        "plugins": [
+            "expo-router",
+            "expo-secure-store",
+            "expo-localization",
+            [
+                "./plugins/activity-alias/plugin",
+                { "iconBackgroundColor": "#C62828" }
+            ]
+        ],
         "experiments": {
             "typedRoutes": true
         }

@@ -2,7 +2,7 @@
 
 > Expo-клиент «График приступов». Android-only. Серверный API: `/api/v1` (Sanctum + refresh).
 >
-> **Статус: Этап 2 — журнал.** Аутентификация (логин/регистрация, токены в SecureStore, единая refresh-очередь) + журнал: список, создание «сейчас», удаление, настройки. См. [`mobile/PLAN.md`](./PLAN.md).
+> **Статус: Этап 3 — быстрый вход.** Аутентификация (логин/регистрация, токены в SecureStore, единая refresh-очередь) + журнал: список, создание «сейчас», удаление, настройки. Новое в этапе: вторая иконка лаунчера «Приступ» (config plugin `activity-alias`) и быстрый экран `/quick` — тап → `POST /seizures` → приложение закрылось; без сессии — короткий логин с возвратом обратно в `/quick`. См. [`mobile/PLAN.md`](./PLAN.md).
 
 ## Quickstart
 
@@ -55,9 +55,35 @@ eas build --profile production --platform android    # AAB для Play Console
 
 > ⚠️ Release-сборки (`assembleRelease`, профили `preview`/`production`) по **HTTP**-адресу API не достучатся: cleartext разрешён только в debug-вариантах (Expo Go и debug-prebuild). Прод — только HTTPS; адрес для отладки на устройстве ставьте через `mobile/.env` (см. [«Локальные URL»](#локальные-url)).
 
+### Локальная проверка двух иконок (Этап 3)
+
+```powershell
+npx expo prebuild --platform android   # применит plugins/activity-alias: alias в манифесте, иконки, патч MainActivity
+npx expo run:android                   # соберёт и поставит debug-вариант
+```
+
+После установки в лаунчере две иконки: «График приступов» (журнал) и «Приступ» (быстрая запись `/quick`). Это debug-сборка — cleartext HTTP разрешён, поэтому проверку этапа 3 можно вести против локального API из `mobile/.env`, без HTTPS.
+
+> Иконка «Приступ» — тот же foreground, что у журнальной, но на красном фоне `#C62828` (задаётся пропсом `iconBackgroundColor` в `app.json` при подключении плагина). Legacy-иконки `ic_launcher_quick` для API < 26 совпадают с журнальной — различие видно только на Android 8+ (adaptive icon).
+
 ## ⚠️ Ограничение Expo Go
 
-В Expo Go **`activity-alias` (вторая иконка «Приступ» в лаунчере) НЕ работает** — это известное ограничение. Для проверки второй иконки (Этап 3) нужен dev или preview build через EAS / `expo run:android`.
+В Expo Go **`activity-alias` (вторая иконка «Приступ» в лаунчере) НЕ работает** — это известное ограничение. Для проверки самой иконки (Этап 3) нужен dev или preview build через EAS / `expo run:android` (см. [«Локальная проверка двух иконок»](#локальная-проверка-двух-иконок-этап-3)).
+
+Быстрый поток `/quick` можно прогнать и без нативной сборки — открыть экран deep-link'ом. В Expo Go (запущен `npx expo start`, проект открыт на устройстве/эмуляторе):
+
+```powershell
+# exp://-адрес — тот, что печатает expo start; /--/ отделяет маршрут
+npx uri-scheme open "exp://<IP-из-expo-start>:8080/--/quick" --android
+```
+
+В установленной debug/dev-сборке (scheme `seizure` зарегистрирован) — короче:
+
+```powershell
+npx uri-scheme open seizure://quick --android
+# или напрямую:
+adb shell am start -W -a android.intent.action.VIEW -d "seizure://quick" com.alex8bits.seizure
+```
 
 Подробнее — [`PLAN.md` §3](./PLAN.md) и [`MOBILE.md` §4](../../MOBILE.md).
 
@@ -87,11 +113,15 @@ mobile/
 ├── vitest.config.ts  # unit-тесты из __tests__/
 ├── .env.example      # образец EXPO_PUBLIC_API_BASE_URL
 ├── app/              # expo-router (file-based)
-│   ├── _layout.tsx   # root Stack + AuthProvider + роутинг-гард
-│   ├── (auth)/       # login.tsx / register.tsx
+│   ├── _layout.tsx   # root Stack + AuthProvider + роутинг-гард (returnTo)
+│   ├── (auth)/       # login.tsx / register.tsx (форвард returnTo)
+│   ├── quick.tsx     # быстрый вход: маршрут /quick (иконка «Приступ»)
 │   └── (journal)/    # _layout.tsx (Stack группы), index.tsx (список,
 │                     # маршрут «/»), new.tsx (создание «сейчас»),
 │                     # settings.tsx (email/выход)
+├── plugins/
+│   └── activity-alias/  # config plugin второй иконки: plugin.ts +
+│                        # android/AndroidManifest.xml.fragment
 ├── src/
 │   ├── api/          # client.ts (refresh-очередь), auth.ts,
 │   │                 # seizures.ts (list/create/delete), types.ts

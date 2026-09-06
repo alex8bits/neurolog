@@ -31,8 +31,8 @@ mobile/
 │   │   ├── index.tsx               # список приступов
 │   │   ├── new.tsx                 # создать (с датой/временем)
 │   │   └── settings.tsx            # профиль / выйти
-│   ├── (quick)/                    # ветка «Приступ» (alias entry)
-│   │   └── index.tsx               # быстрый POST + close
+│   ├── quick.tsx                   # ветка «Приступ» (alias entry): плоский
+│   │                               # маршрут /quick — быстрый POST + close
 │   └── (auth)/                     # общая для обоих входов
 │       ├── login.tsx
 │       └── register.tsx
@@ -126,10 +126,11 @@ mobile/
 Шаги:
 1. Config plugin `plugins/activity-alias/`:
    - в `AndroidManifest.xml` добавляется `activity-alias` с собственным `android:label`, `android:icon`, `android:targetActivity=".MainActivity"` и фильтром `MAIN`/`LAUNCHER`;
-   - в `Intent` extras пробрасывается маркер, какая именно иконка открыла приложение.
-2. `app.json` подключает plugin, указывает label «Приступ» и путь к иконке.
-3. В корневом `app/_layout.tsx` читаем initial intent и роутим в `/(quick)` или `/(journal)`. В dev-сборке (`expo prebuild && expo run:android`) проверяем, что в лаунчере **две** иконки.
-4. `app/(quick)/index.tsx`:
+   - маркер входа — не `Intent` extras (отклонение от исходной формулировки: лаунчер extras не шлёт): им служит сам компонент alias `.QuickEntryAlias` — патч `MainActivity` переводит его в `intent.data = seizure://quick`, дальше маршрут `/quick` разбирает штатный deep-link механизм expo-router;
+   - ресурсы иконки: adaptive-icon `ic_launcher_quick` (тот же foreground, что у журнальной, фон-цвет); legacy-иконки кладутся во все плотности безусловно — в Expo 57 minSdk задаётся gradle-плагином, числа в `build.gradle` нет, поэтому на API < 26 иконка совпадает с журнальной (различие — только Android 8+).
+2. `app.json` подключает plugin ссылкой на файл `"./plugins/activity-alias/plugin"` (резолвер Expo не находит `plugin.ts` при ссылке на директорию); пропс — `iconBackgroundColor` (`#C62828`; label «Приступ» зашит в plugin).
+3. Отдельного чтения intent в корневом `app/_layout.tsx` нет: URL проставляет нативный патч из п.1, роутит штатный deep-link expo-router. В `_layout.tsx` — гард `returnTo=/quick` (аноним из `/quick` уходит на логин и после успеха возвращается в быструю ветку, не в журнал) и запрет жеста «назад» для `quick`. В dev-сборке (`expo prebuild && expo run:android`) проверяем, что в лаунчере **две** иконки.
+4. `app/quick.tsx` (не `app/(quick)/index.tsx`: две группы `index.tsx` конфликтуют на пути «/»):
    - нет токенов → push в `/(auth)/login` (или `register`), после успеха сразу `POST /seizures`;
    - есть токены → сразу `POST /seizures` с `{ timezone }`;
    - 201 → `BackHandler.exitApp()` (Android) либо `finishAffinity` через нативный модуль, **никакого** журнала на экране;

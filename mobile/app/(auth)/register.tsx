@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -16,6 +16,8 @@ import { ApiError, userMessage } from '@/utils/errors';
 export default function RegisterScreen() {
     const { register } = useAuth();
     const router = useRouter();
+    // Пришли из быстрой ветки (/quick) — параметр переживёт и логин.
+    const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
 
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
@@ -110,6 +112,18 @@ export default function RegisterScreen() {
             applyError(error);
         } finally {
             setSubmitting(false);
+        }
+    }
+
+    /** Перекрёстная ссылка на логин: форвардим returnTo, если он есть. */
+    function goToLogin(): void {
+        if (returnTo !== undefined) {
+            router.push({
+                pathname: '/(auth)/login',
+                params: { returnTo },
+            });
+        } else {
+            router.push('/(auth)/login');
         }
     }
 
@@ -227,7 +241,7 @@ export default function RegisterScreen() {
             <Pressable
                 accessibilityRole="link"
                 style={styles.link}
-                onPress={() => router.push('/(auth)/login')}
+                onPress={goToLogin}
             >
                 <Text style={styles.linkLabel}>Уже есть аккаунт? Войти</Text>
             </Pressable>

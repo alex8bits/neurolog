@@ -9,25 +9,7 @@ import { useEffect } from 'react';
 import type { ReactNode } from 'react';
 
 import { AuthProvider, useAuth } from '@/auth/AuthContext';
-
-/** Белый список returnTo: параметр внутренний, его ставит только само приложение. */
-const RETURN_TO_WHITELIST = ['/quick'] as const;
-
-/** Валидное значение returnTo — литерал из белого списка. */
-type ReturnTo = (typeof RETURN_TO_WHITELIST)[number];
-
-/**
- * Проверка query-параметра по белому списку: массив (повторённый в URL
- * параметр), undefined и мусор не проходят — только строка-литерал.
- */
-function isAllowedReturnTo(
-    value: string | string[] | undefined,
-): value is ReturnTo {
-    return (
-        typeof value === 'string' &&
-        (RETURN_TO_WHITELIST as readonly string[]).includes(value)
-    );
-}
+import { resolveReturnTo } from '@/auth/returnTo';
 
 /**
  * Роутинг-гард (канон expo-router): до bootstrap ничего не рендерим,
@@ -63,11 +45,7 @@ function AppGuard({ children }: { children: ReactNode }) {
             }
         } else if (status === 'authed' && inAuthGroup) {
             // Возврат после логина — только по белому списку, иначе журнал.
-            const returnTo = isAllowedReturnTo(params.returnTo)
-                ? params.returnTo
-                : '/';
-
-            router.replace(returnTo);
+            router.replace(resolveReturnTo(params.returnTo));
         }
     }, [status, segments, router, params.returnTo]);
 

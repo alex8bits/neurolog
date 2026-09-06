@@ -268,8 +268,12 @@ function copyLegacyLauncherIcons(resRoot: string): void {
  * Патч MainActivity.kt: onCreate/onNewIntent при запуске через alias
  * проставляют intent.data = seizure://quick ДО super — настоящий deep-link
  * (intent.data != null) не затираем. Идемпотентно: повторно не патчится.
+ * Fail-fast: якорь класса и существующий onCreate обязательны — шаблон
+ * без onCreate не поддерживается (генерировать свой override ненадёжно:
+ * нет гарантий импорта Bundle и семантики super.onCreate у нового шаблона
+ * Expo). Экспортируется для тестов.
  */
-function patchMainActivity(source: string): string {
+export function patchMainActivity(source: string): string {
     if (source.includes('stampQuickIntent')) {
         return source;
     }
@@ -283,6 +287,18 @@ function patchMainActivity(source: string): string {
         );
     }
 
+    const onCreateAnchor =
+        'override fun onCreate(savedInstanceState: Bundle?) {';
+
+    if (!source.includes(onCreateAnchor)) {
+        throw new Error(
+            'activity-alias: якорь патча не найден — ' +
+                `"${onCreateAnchor}" отсутствует в MainActivity. ` +
+                'Шаблон без onCreate не поддерживается: обновите плагин ' +
+                'под новый шаблон Expo',
+        );
+    }
+
     let patched = source;
 
     patched = insertImports(patched, [
@@ -290,22 +306,10 @@ function patchMainActivity(source: string): string {
         'import android.net.Uri',
     ]);
 
-    const onCreateAnchor =
-        'override fun onCreate(savedInstanceState: Bundle?) {';
-
-    if (patched.includes(onCreateAnchor)) {
-        patched = patched.replace(
-            onCreateAnchor,
-            `${onCreateAnchor}\n    stampQuickIntent(intent)`,
-        );
-    } else {
-        // Шаблон без onCreate — добавляем полный override.
-        patched = patched.replace(
-            classAnchor,
-            `${classAnchor}\n${onCreateAnchor}\n    stampQuickIntent(intent)\n` +
-                '    super.onCreate(savedInstanceState)\n  }\n',
-        );
-    }
+    patched = patched.replace(
+        onCreateAnchor,
+        `${onCreateAnchor}\n    stampQuickIntent(intent)`,
+    );
 
     const stampBlock = [
         '  override fun onNewIntent(intent: Intent) {',

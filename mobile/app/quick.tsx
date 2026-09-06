@@ -25,7 +25,9 @@ type QuickPhase = 'sending' | 'retryable' | 'expired';
  * числе по аппаратному back (перехвачен и тоже выходит). Ошибки —
  * короткий текст и одна кнопка: «Повторить» (сеть/5xx/429) либо
  * «Войти снова» (401 после неудачного refresh — молчаливый выход
- * запрещён, MOBILE.md §5). Анонима и до bootstrap не рендерим —
+ * запрещён, MOBILE.md §5). Двойной тап «Повторить» до ре-рендера
+ * отсекается ref-флагом в send — второй POST не уходит. Анонима и
+ * до bootstrap не рендерим —
  * редирект на логин делает гард в app/_layout.tsx.
  */
 export default function QuickEntryScreen() {
@@ -40,8 +42,20 @@ export default function QuickEntryScreen() {
     // POST. Кнопка «Повторить» зовёт send напрямую, минуя флаг.
     const autoSentRef = useRef(false);
 
-    /** Одна попытка записи: 201 → выход из приложения; ApiError — по kind. */
+    // Попытка в полёте: два быстрых тапа «Повторить» в одном кадре
+    // видят ещё старую фазу (стейт обновится только на ре-рендере),
+    // поэтому отсекаем синхронным ref-флагом, а не проверкой phase.
+    // Снимается в finally — после ошибки «Повторить» снова работает.
+    const sendInFlightRef = useRef(false);
+
+    /** Одна попытка записи: 201 → выход из приложения; ApiError — по kind.
+     * Повторный вызов, пока попытка в полёте, молча игнорируется. */
     const send = useCallback(async (): Promise<void> => {
+        if (sendInFlightRef.current) {
+            return;
+        }
+
+        sendInFlightRef.current = true;
         setPhase('sending');
 
         try {
@@ -69,6 +83,10 @@ export default function QuickEntryScreen() {
             // Неожиданная ошибка — не крашимся, показываем общий текст.
             setPhase('retryable');
             setMessage('Сервер недоступен, попробуйте позже.');
+        } finally {
+            // Отпускаем флаг и после ошибки: «Повторить» должен работать.
+            // После 201 это уже неважно — экран закрывается с приложением.
+            sendInFlightRef.current = false;
         }
     }, []);
 

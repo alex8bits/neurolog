@@ -1,0 +1,13 @@
+node_modules/
+.expo/
+.expo-shared/
+dist/
+web-build/
+android/
+ios/
+*.log
+*.orig.*
+.smoke-logs/
+
+# Documentation committed to master in a different format — keep as-is.
+PLAN.md

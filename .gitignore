@@ -27,3 +27,30 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+/.mavis
+
+# EFK stack (profile=logs) runtime data — never commit.
+# Configs under dockerfiles/{elasticsearch,kibana,fluent-bit} ARE committed.
+/storage/elasticsearch
+/storage/fluent-bit
+docker-elk-data/
+
+# Expo / React Native (mobile/)
+mobile/node_modules/
+mobile/.expo/
+mobile/.expo-shared/
+mobile/dist/
+mobile/web-build/
+mobile/android/
+mobile/ios/
+mobile/.env
+mobile/.env.local
+mobile/expo-env.d.ts
+
+# Expo standard (never commit credentials)
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*

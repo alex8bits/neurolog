@@ -250,6 +250,13 @@ async function toApiError(response: Response): Promise<ApiError> {
         });
     }
 
+    if (response.status === 404) {
+        return new ApiError('not_found', {
+            status: 404,
+            message: body?.message,
+        });
+    }
+
     // 5xx и прочие незаконтрактованные статусы.
     return new ApiError('server', {
         status: response.status,

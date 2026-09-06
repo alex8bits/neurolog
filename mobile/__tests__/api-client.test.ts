@@ -181,6 +181,23 @@ describe('apiFetch: маппинг статусов в ApiError', () => {
         );
     });
 
+    it('404 → not_found с текстом «не найдено»', async () => {
+        fetchMock.mockResolvedValue(
+            jsonResponse(404, {
+                message:
+                    'No query results for model [App\\Models\\Seizure] 123',
+            }),
+        );
+
+        const error = await expectApiError(
+            apiFetch('/seizures/123', { method: 'DELETE', auth: false }),
+            'not_found',
+        );
+
+        expect(error.status).toBe(404);
+        expect(userMessage(error)).toBe('Запись не найдена.');
+    });
+
     it('500 → server', async () => {
         fetchMock.mockResolvedValue(
             jsonResponse(500, { message: 'Server Error' }),

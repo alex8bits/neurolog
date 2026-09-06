@@ -14,7 +14,9 @@ export type ApiErrorKind =
     // 5xx и прочие неклассифицированные статусы
     | 'server'
     // 401 после исчерпания refresh — сессия истекла
-    | 'unauthorized';
+    | 'unauthorized'
+    // 404 — запрошенная запись не найдена (чужая/несуществующая/удалённая)
+    | 'not_found';
 
 export interface ApiErrorInit {
     /** HTTP-статус, если ответ вообще был. */
@@ -65,5 +67,7 @@ export function userMessage(error: ApiError): string {
             return 'Сессия истекла, войдите снова.';
         case 'validation':
             return 'Проверьте введённые данные.';
+        case 'not_found':
+            return 'Запись не найдена.';
     }
 }

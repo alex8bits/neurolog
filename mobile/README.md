@@ -2,7 +2,7 @@
 
 > Expo-клиент «График приступов». Android-only. Серверный API: `/api/v1` (Sanctum + refresh).
 >
-> **Статус: Этап 1 — аутентификация.** Логин/регистрация, токены в SecureStore, единая refresh-очередь. Журнал — Этап 2+. См. [`mobile/PLAN.md`](./PLAN.md).
+> **Статус: Этап 2 — журнал.** Аутентификация (логин/регистрация, токены в SecureStore, единая refresh-очередь) + журнал: список, создание «сейчас», удаление, настройки. См. [`mobile/PLAN.md`](./PLAN.md).
 
 ## Quickstart
 
@@ -17,7 +17,7 @@ npm run test
 npx expo start
 ```
 
-После `npx expo start` в терминале появится QR-код. Сканировать в **Expo Go** на Android-устройстве. Приложение откроется на экране входа; после регистрации или логина — «Вы вошли как \<email\>», рестарт не спрашивает логин повторно.
+После `npx expo start` в терминале появится QR-код. Сканировать в **Expo Go** на Android-устройстве. Приложение откроется на экране входа; после регистрации или логина — список приступов (время показывается в поясе устройства). Новая запись — кнопка «+» (фиксируется текущее время); удаление — долгое нажатие по записи с подтверждением; выход — «Настройки» → «Выйти». Рестарт не спрашивает логин повторно.
 
 ## Локальные URL
 
@@ -88,15 +88,18 @@ mobile/
 ├── .env.example      # образец EXPO_PUBLIC_API_BASE_URL
 ├── app/              # expo-router (file-based)
 │   ├── _layout.tsx   # root Stack + AuthProvider + роутинг-гард
-│   ├── index.tsx     # индикатор сессии (журнал — Этап 2)
-│   └── (auth)/       # login.tsx / register.tsx
+│   ├── (auth)/       # login.tsx / register.tsx
+│   └── (journal)/    # _layout.tsx (Stack группы), index.tsx (список,
+│                     # маршрут «/»), new.tsx (создание «сейчас»),
+│                     # settings.tsx (email/выход)
 ├── src/
-│   ├── api/          # client.ts (refresh-очередь), auth.ts, types.ts
+│   ├── api/          # client.ts (refresh-очередь), auth.ts,
+│   │                 # seizures.ts (list/create/delete), types.ts
 │   ├── auth/         # tokens.ts (SecureStore), AuthContext.tsx
 │   ├── config/       # env.ts, timezone.ts
-│   └── utils/        # errors.ts
+│   └── utils/        # errors.ts, time.ts (парсер/форматтер UTC-ISO)
 ├── assets/           # иконки
-└── __tests__/        # api-client.test.ts, refresh-queue.test.ts
+└── __tests__/        # api-client.test.ts, refresh-queue.test.ts, time.test.ts
 ```
 
 ## Связанные документы

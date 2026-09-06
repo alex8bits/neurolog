@@ -9,7 +9,14 @@
             // из expo/types/react-native-web.d.ts ломает TextStyle/
             // ViewStyle). Возвращаем типы на легаси-дерево react-native
             // (types/index.d.ts), которое RN 0.87 продолжает поставлять.
-            "react-native": ["./node_modules/react-native/types/index.d.ts"]
+            "react-native": ["./node_modules/react-native/types/index.d.ts"],
+            // По той же причине — легаси-типы списков: без маппинга пакет
+            // отдаёт types_generated, где VirtualizedListProps собирается
+            // Omit'ом от ScrollViewProps смешанного дерева и теряет
+            // унаследованные пропы FlatList (refreshControl и др.).
+            "@react-native/virtualized-lists": [
+                "./node_modules/@react-native/virtualized-lists/index.d.ts"
+            ]
         }
     },
     "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"],

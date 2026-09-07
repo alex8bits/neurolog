@@ -1,6 +1,6 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
     Alert,
     FlatList,
@@ -10,14 +10,20 @@ import {
     Text,
     View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { deleteSeizure, listSeizures } from '@/api/seizures';
 import type { Seizure } from '@/api/types';
 import { deviceTimezone } from '@/config/timezone';
+import {
+    formatDayTitle,
+    groupSeizuresByDay,
+    pluralizeSeizures,
+} from '@/utils/dayGroups';
 import { ApiError, userMessage } from '@/utils/errors';
 import { isCustomRangeValid, periodToRange } from '@/utils/period';
 import type { PeriodFilter } from '@/utils/period';
-import { formatLocalDateTime, formatYmd } from '@/utils/time';
+import { formatHm, formatYmd, parseUtcIso } from '@/utils/time';
 
 const GENERIC_ERROR_TEXT = 'Сервер недоступен, попробуйте позже.';
 
@@ -46,6 +52,14 @@ function deleteErrorText(error: unknown): string {
     return error instanceof ApiError ? userMessage(error) : GENERIC_ERROR_TEXT;
 }
 
+/** «14:25» для строки внутри группы дня; непарсируемое (не бывает по
+ *  контракту сервера) — сырая строка вместо пустоты. */
+function rowTimeLabel(occurredAt: string): string {
+    const moment = parseUtcIso(occurredAt);
+
+    return moment !== null ? formatHm(moment) : occurredAt;
+}
+
 /**
  * Журнал — список приступов, маршрут «/» (владелец — группа (journal)).
  * Загрузка при фокусе экрана и по pull-to-refresh; порядок строк задаёт
@@ -57,9 +71,17 @@ function deleteErrorText(error: unknown): string {
  * «Сегодня / 7 дней / 30 дней» и «Произвольный период». Границы from/to
  * считает periodToRange, сервер трактует их включительно целыми
  * календарными днями в поданной timezone — экран не делает дата-арифметики.
+ *
+ * Строки сгруппированы по календарным дням (groupSeizuresByDay): заголовок
+ * дня с количеством приступов, внутри — только время и комментарий; фон
+ * групп чередуется, чтобы дни визуально отделялись. Контент не залезает
+ * под статус-бар — paddingTop на insets.top этого экрана.
  */
 export default function JournalScreen() {
     const router = useRouter();
+
+    // Отступ статус-бара: контент начинается под часами/уведомлениями.
+    const insets = useSafeAreaInsets();
 
     // null = первая загрузка не завершена: отличаем «грузим» от «пусто».
     const [items, setItems] = useState<Seizure[] | null>(null);
@@ -138,6 +160,10 @@ export default function JournalScreen() {
         }, [load]),
     );
 
+    // Группы по календарным дням: пересборка только при смене items
+    // (загрузка/фильтр/локальное удаление), порядок — как от сервера.
+    const dayGroups = useMemo(() => groupSeizuresByDay(items ?? []), [items]);
+
     /** Убирает запись из локального списка тем же фильтром по id. */
     function removeLocalItem(id: number): void {
         setItems((prev) =>
@@ -214,7 +240,12 @@ export default function JournalScreen() {
     // Шапка: «Настройки» и «+» идут на абсолютные typed routes
     // группы (journal).
     return (
-        <View style={styles.screen}>
+        <View
+            style={[
+                styles.screen,
+                { paddingTop: insets.top, paddingBottom: insets.bottom },
+            ]}
+        >
             <View style={styles.header}>
                 <Pressable
                     accessibilityRole="link"
@@ -399,8 +430,8 @@ export default function JournalScreen() {
 
             {items !== null && items.length > 0 ? (
                 <FlatList
-                    data={items}
-                    keyExtractor={(s) => String(s.id)}
+                    data={dayGroups}
+                    keyExtractor={(group) => group.key}
                     contentContainerStyle={styles.listContent}
                     refreshControl={
                         <RefreshControl
@@ -410,31 +441,53 @@ export default function JournalScreen() {
                             }}
                         />
                     }
-                    renderItem={({ item }) => (
-                        <Pressable
-                            accessibilityRole="button"
-                            accessibilityHint="Долгое нажатие — удаление записи"
-                            disabled={deletingId === item.id}
-                            onLongPress={() => {
-                                confirmDelete(item);
-                            }}
+                    renderItem={({ item: group, index }) => (
+                        // Фон групп чередуется: чётный индекс — белый,
+                        // нечётный — светло-серый; дни визуально
+                        // отделяются без рамок.
+                        <View
                             style={[
-                                styles.row,
-                                deletingId === item.id && styles.rowDisabled,
+                                styles.group,
+                                index % 2 === 0
+                                    ? styles.groupEven
+                                    : styles.groupOdd,
                             ]}
                         >
-                            <Text style={styles.rowDate}>
-                                {formatLocalDateTime(item.occurred_at)}
+                            <Text style={styles.groupTitle}>
+                                {formatDayTitle(group.day)} · {group.count}{' '}
+                                {pluralizeSeizures(group.count)}
                             </Text>
-                            {item.comment !== null ? (
-                                <Text
-                                    numberOfLines={3}
-                                    style={styles.rowComment}
+                            {group.items.map((seizure, rowIndex) => (
+                                <Pressable
+                                    key={seizure.id}
+                                    accessibilityRole="button"
+                                    accessibilityHint="Долгое нажатие — удаление записи"
+                                    disabled={deletingId === seizure.id}
+                                    onLongPress={() => {
+                                        confirmDelete(seizure);
+                                    }}
+                                    style={[
+                                        styles.row,
+                                        rowIndex < group.items.length - 1 &&
+                                            styles.rowSeparator,
+                                        deletingId === seizure.id &&
+                                            styles.rowDisabled,
+                                    ]}
                                 >
-                                    {item.comment}
-                                </Text>
-                            ) : null}
-                        </Pressable>
+                                    <Text style={styles.rowTime}>
+                                        {rowTimeLabel(seizure.occurred_at)}
+                                    </Text>
+                                    {seizure.comment !== null ? (
+                                        <Text
+                                            numberOfLines={3}
+                                            style={styles.rowComment}
+                                        >
+                                            {seizure.comment}
+                                        </Text>
+                                    ) : null}
+                                </Pressable>
+                            ))}
+                        </View>
                     )}
                 />
             ) : null}
@@ -572,17 +625,40 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
     listContent: {
+        // Хвост списка не прилипает к нижней кромке при докрутке.
+        paddingBottom: 24,
+    },
+    // Горизонтальный отступ здесь, а не в listContent: фон группы тянется
+    // от края до края — полосы дней читаются целиком.
+    group: {
         paddingHorizontal: 24,
     },
+    groupEven: {
+        backgroundColor: '#FFFFFF',
+    },
+    groupOdd: {
+        backgroundColor: '#F2F3F5',
+    },
+    groupTitle: {
+        color: '#666',
+        fontSize: 13,
+        fontWeight: '600',
+        paddingBottom: 4,
+        paddingTop: 12,
+    },
     row: {
+        paddingVertical: 14,
+    },
+    // Разделитель только между строками одной группы: перед заголовком
+    // следующего дня линии нет.
+    rowSeparator: {
         borderBottomColor: '#eee',
         borderBottomWidth: 1,
-        paddingVertical: 14,
     },
     rowDisabled: {
         opacity: 0.6,
     },
-    rowDate: {
+    rowTime: {
         color: '#000',
         fontSize: 16,
         fontWeight: '600',

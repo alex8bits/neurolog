@@ -647,7 +647,7 @@ const styles = StyleSheet.create({
         paddingTop: 12,
     },
     row: {
-        paddingVertical: 14,
+        paddingVertical: 6,
     },
     // Разделитель только между строками одной группы: перед заголовком
     // следующего дня линии нет.
@@ -666,6 +666,6 @@ const styles = StyleSheet.create({
     rowComment: {
         color: '#333',
         fontSize: 14,
-        marginTop: 4,
+        marginTop: 3,
     },
 });

@@ -46,8 +46,22 @@ export interface SeizureResponse {
     data: Seizure;
 }
 
-/** Тело POST /seizures; occurred_at не шлём — «сейчас» ставит сервер. */
+/**
+ * Тело POST /seizures. occurred_at — опциональная наивная строка
+ * `YYYY-MM-DDTHH:mm:ss` в поясе timezone; сервер нормализует её в UTC
+ * (SeizureMomentNormalizer.php). Отсутствие поля — момент на сервере
+ * ставится «сейчас».
+ */
 export interface CreateSeizureInput {
     timezone: string; // IANA
+    occurred_at?: string;
     comment?: string;
+}
+
+/** Параметры GET /seizures; from/to — Y-m-d, границы включительно (сервер
+ *  трактует их целыми календарными днями в разрешённом поясе). */
+export interface ListSeizuresParams {
+    timezone: string; // IANA
+    from?: string; // Y-m-d
+    to?: string; // Y-m-d
 }

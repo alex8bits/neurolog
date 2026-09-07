@@ -19,6 +19,7 @@
         "test": "vitest run"
     },
     "dependencies": {
+        "@react-native-community/datetimepicker": "9.1.0",
         "expo": "~57.0.20",
         "expo-linking": "~57.0.9",
         "expo-localization": "~57.0.1",

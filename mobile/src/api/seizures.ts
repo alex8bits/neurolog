@@ -1,6 +1,7 @@
 import { apiFetch } from '@/api/client';
 import type {
     CreateSeizureInput,
+    ListSeizuresParams,
     Seizure,
     SeizureListResponse,
     SeizureResponse,
@@ -10,9 +11,17 @@ import type {
 const PER_PAGE = 50;
 
 export async function listSeizures(
-    timezone: string,
+    params: ListSeizuresParams,
 ): Promise<SeizureListResponse> {
-    const query = `per_page=${PER_PAGE}&timezone=${encodeURIComponent(timezone)}`;
+    let query = `per_page=${PER_PAGE}&timezone=${encodeURIComponent(params.timezone)}`;
+
+    if (params.from !== undefined) {
+        query += `&from=${encodeURIComponent(params.from)}`;
+    }
+
+    if (params.to !== undefined) {
+        query += `&to=${encodeURIComponent(params.to)}`;
+    }
 
     return apiFetch<SeizureListResponse>(`/seizures?${query}`);
 }

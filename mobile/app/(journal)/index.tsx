@@ -1,3 +1,4 @@
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
@@ -14,9 +15,19 @@ import { deleteSeizure, listSeizures } from '@/api/seizures';
 import type { Seizure } from '@/api/types';
 import { deviceTimezone } from '@/config/timezone';
 import { ApiError, userMessage } from '@/utils/errors';
-import { formatLocalDateTime } from '@/utils/time';
+import { isCustomRangeValid, periodToRange } from '@/utils/period';
+import type { PeriodFilter } from '@/utils/period';
+import { formatLocalDateTime, formatYmd } from '@/utils/time';
 
 const GENERIC_ERROR_TEXT = 'Сервер недоступен, попробуйте позже.';
+
+/** Чипы-пресеты фильтра периода; «Произвольный период» — отдельный чип. */
+const PERIOD_PRESETS: { filter: PeriodFilter; label: string }[] = [
+    { filter: { kind: 'all' }, label: 'Всё время' },
+    { filter: { kind: 'today' }, label: 'Сегодня' },
+    { filter: { kind: 'last7' }, label: '7 дней' },
+    { filter: { kind: 'last30' }, label: '30 дней' },
+];
 
 /** Текст ошибки загрузки: сеть/сессия — из userMessage, прочее — общий. */
 function loadErrorText(error: unknown): string {
@@ -41,6 +52,11 @@ function deleteErrorText(error: unknown): string {
  * сервер (occurred_at DESC, id DESC) — на клиенте не сортируем. Удаление —
  * long-press по строке с подтверждением через Alert. Гард корневого
  * layout сам уводит на логин при истечении сессии.
+ *
+ * Фильтр периода: дефолт «Всё время» (from/to не шлются), пресеты
+ * «Сегодня / 7 дней / 30 дней» и «Произвольный период». Границы from/to
+ * считает periodToRange, сервер трактует их включительно целыми
+ * календарными днями в поданной timezone — экран не делает дата-арифметики.
  */
 export default function JournalScreen() {
     const router = useRouter();
@@ -54,23 +70,50 @@ export default function JournalScreen() {
     // Блокирует повторный запуск удаления той же строки.
     const [deletingId, setDeletingId] = useState<number | null>(null);
 
-    /** Загрузка списка; при неудачном рефетче уже показанный список остаётся. */
-    const load = useCallback(async (): Promise<void> => {
-        setRefreshing(true);
+    // Фильтр периода списка; дефолт «Всё время».
+    const [period, setPeriod] = useState<PeriodFilter>({ kind: 'all' });
 
-        try {
-            const response = await listSeizures(deviceTimezone());
+    // Развёрнута ли строка выбора произвольного периода.
+    const [customOpen, setCustomOpen] = useState(false);
 
-            setItems(response.data);
-            setLoadError(null);
-        } catch (error) {
-            // items не трогаем; не-ApiError тоже попадает в loadError —
-            // рендер покажет для него общий текст.
-            setLoadError(error);
-        } finally {
-            setRefreshing(false);
-        }
-    }, []);
+    // Черновик custom-диапазона; применяется кнопкой «Применить».
+    const [draftFrom, setDraftFrom] = useState<Date>(new Date());
+    const [draftTo, setDraftTo] = useState<Date>(new Date());
+
+    // Какую дату черновика редактирует открытый пикер.
+    const [pickerFor, setPickerFor] = useState<'from' | 'to' | null>(null);
+
+    // Ошибка валидации custom-диапазона (от > до): запрос не шлём.
+    const [periodError, setPeriodError] = useState<string | null>(null);
+
+    /**
+     * Загрузка списка по фильтру p (по умолчанию — текущий period): явный
+     * параметр устраняет stale closure сразу после применения нового
+     * фильтра. При неудачном рефетче уже показанный список остаётся.
+     */
+    const load = useCallback(
+        async (p: PeriodFilter = period): Promise<void> => {
+            setRefreshing(true);
+            const range = periodToRange(p);
+
+            try {
+                const response = await listSeizures({
+                    timezone: deviceTimezone(),
+                    ...(range ?? {}),
+                });
+
+                setItems(response.data);
+                setLoadError(null);
+            } catch (error) {
+                // items не трогаем; не-ApiError тоже попадает в loadError —
+                // рендер покажет для него общий текст.
+                setLoadError(error);
+            } finally {
+                setRefreshing(false);
+            }
+        },
+        [period],
+    );
 
     // Один механизм на монтирование и возвраты из new/settings
     // (включая системный back) — вариант A дизайн-документа.
@@ -121,6 +164,30 @@ export default function JournalScreen() {
         }
     }
 
+    /** Применение фильтра: новый запрос = новое «первое» состояние, строки
+     *  и ошибки предыдущего периода не висят рядом — до ответа «Загрузка…». */
+    function applyPeriod(next: PeriodFilter): void {
+        setPeriod(next);
+        setPeriodError(null);
+        setItems(null);
+        setLoadError(null);
+        void load(next);
+    }
+
+    /** «Применить» в custom-строке: от > до — ошибка, запрос не шлём. */
+    function applyCustomPeriod(): void {
+        const from = formatYmd(draftFrom);
+        const to = formatYmd(draftTo);
+
+        if (!isCustomRangeValid(from, to)) {
+            setPeriodError('Начало периода больше конца.');
+
+            return;
+        }
+
+        applyPeriod({ kind: 'custom', from, to });
+    }
+
     // Шапка: «Настройки» и «+» идут на абсолютные typed routes
     // группы (journal).
     return (
@@ -147,6 +214,119 @@ export default function JournalScreen() {
                     <Text style={styles.addLabel}>+</Text>
                 </Pressable>
             </View>
+
+            <View style={styles.chips}>
+                {PERIOD_PRESETS.map((preset) => (
+                    <Pressable
+                        key={preset.filter.kind}
+                        accessibilityRole="button"
+                        accessibilityState={{
+                            selected: period.kind === preset.filter.kind,
+                        }}
+                        style={[
+                            styles.chip,
+                            period.kind === preset.filter.kind &&
+                                styles.chipSelected,
+                        ]}
+                        onPress={() => {
+                            applyPeriod(preset.filter);
+                        }}
+                    >
+                        <Text
+                            style={[
+                                styles.chipLabel,
+                                period.kind === preset.filter.kind &&
+                                    styles.chipLabelSelected,
+                            ]}
+                        >
+                            {preset.label}
+                        </Text>
+                    </Pressable>
+                ))}
+                <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: period.kind === 'custom' }}
+                    style={[
+                        styles.chip,
+                        period.kind === 'custom' && styles.chipSelected,
+                    ]}
+                    onPress={() => {
+                        setCustomOpen((open) => !open);
+                    }}
+                >
+                    <Text
+                        style={[
+                            styles.chipLabel,
+                            period.kind === 'custom' &&
+                                styles.chipLabelSelected,
+                        ]}
+                    >
+                        Произвольный период
+                    </Text>
+                </Pressable>
+            </View>
+
+            {customOpen ? (
+                <View>
+                    <View style={styles.customRow}>
+                        <Pressable
+                            accessibilityRole="button"
+                            style={styles.customDate}
+                            onPress={() => {
+                                setPickerFor('from');
+                            }}
+                        >
+                            <Text style={styles.customDateLabel}>
+                                От: {formatYmd(draftFrom)}
+                            </Text>
+                        </Pressable>
+                        <Pressable
+                            accessibilityRole="button"
+                            style={styles.customDate}
+                            onPress={() => {
+                                setPickerFor('to');
+                            }}
+                        >
+                            <Text style={styles.customDateLabel}>
+                                До: {formatYmd(draftTo)}
+                            </Text>
+                        </Pressable>
+                        <Pressable
+                            accessibilityRole="button"
+                            style={styles.customApply}
+                            onPress={applyCustomPeriod}
+                        >
+                            <Text style={styles.customApplyLabel}>
+                                Применить
+                            </Text>
+                        </Pressable>
+                    </View>
+                    {periodError !== null ? (
+                        <Text style={styles.inlineError}>{periodError}</Text>
+                    ) : null}
+                    {pickerFor !== null ? (
+                        <DateTimePicker
+                            value={pickerFor === 'from' ? draftFrom : draftTo}
+                            mode="date"
+                            display="default"
+                            onChange={(event, date) => {
+                                if (
+                                    event.type === 'set' &&
+                                    date !== undefined
+                                ) {
+                                    if (pickerFor === 'from') {
+                                        setDraftFrom(date);
+                                    } else {
+                                        setDraftTo(date);
+                                    }
+                                }
+
+                                setPickerFor(null);
+                            }}
+                        />
+                    ) : null}
+                </View>
+            ) : null}
 
             {items !== null && loadError !== null ? (
                 <Text style={styles.inlineError}>
@@ -183,7 +363,11 @@ export default function JournalScreen() {
 
             {items !== null && items.length === 0 ? (
                 <View style={styles.state}>
-                    <Text style={styles.hint}>Приступов пока нет.</Text>
+                    <Text style={styles.hint}>
+                        {period.kind === 'all'
+                            ? 'Приступов пока нет. Нажмите «+», чтобы записать.'
+                            : 'За выбранный период приступов нет.'}
+                    </Text>
                 </View>
             ) : null}
 
@@ -266,6 +450,64 @@ const styles = StyleSheet.create({
     addLabel: {
         color: '#fff',
         fontSize: 16,
+        fontWeight: '600',
+    },
+    chips: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        paddingBottom: 12,
+        paddingHorizontal: 24,
+        paddingTop: 4,
+    },
+    chip: {
+        borderColor: '#ccc',
+        borderRadius: 8,
+        borderWidth: 1,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+    },
+    chipSelected: {
+        backgroundColor: '#2f6fde',
+        borderColor: '#2f6fde',
+    },
+    chipLabel: {
+        color: '#000',
+        fontSize: 14,
+    },
+    chipLabelSelected: {
+        color: '#fff',
+        fontWeight: '600',
+    },
+    customRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        paddingHorizontal: 24,
+    },
+    customDate: {
+        alignItems: 'center',
+        borderColor: '#ccc',
+        borderRadius: 8,
+        borderWidth: 1,
+        flexGrow: 1,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+    },
+    customDateLabel: {
+        color: '#000',
+        fontSize: 14,
+    },
+    customApply: {
+        alignItems: 'center',
+        backgroundColor: '#2f6fde',
+        borderRadius: 8,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+    },
+    customApplyLabel: {
+        color: '#fff',
+        fontSize: 14,
         fontWeight: '600',
     },
     inlineError: {

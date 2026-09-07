@@ -14,8 +14,10 @@ import { createSeizure } from '@/api/seizures';
 import { deviceTimezone } from '@/config/timezone';
 import { ApiError, userMessage } from '@/utils/errors';
 import {
+    formatHm,
     formatYmd,
     isBeyondNowPlusMinutes,
+    startOfMinute,
     toNaiveLocalIso,
 } from '@/utils/time';
 
@@ -25,13 +27,6 @@ const COMMENT_MAX_LENGTH = 2000;
 /** Зеркало серверного FUTURE_TOLERANCE_MINUTES (SeizureValidationRules.php:18):
  *  дальше now+5 минут сервер вернёт 422 — блокируем до запроса. */
 const FUTURE_TOLERANCE_MINUTES = 5;
-
-/** «HH:MM» из локальных компонентов значения пикера — подпись кнопки «Время». */
-function formatHm(date: Date): string {
-    const pad = (part: number) => String(part).padStart(2, '0');
-
-    return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
 
 /**
  * Запись приступа. По умолчанию — «сейчас»: occurred_at не шлём, сервер
@@ -114,7 +109,7 @@ export default function NewSeizureScreen() {
         setExactTime(next);
 
         if (next) {
-            setMoment(new Date(Math.floor(Date.now() / 60_000) * 60_000));
+            setMoment(startOfMinute());
         } else {
             setMoment(null);
             clearError('occurred_at');
@@ -225,13 +220,13 @@ export default function NewSeizureScreen() {
                 </View>
             ) : null}
 
-            {pickerMode !== null && moment !== null ? (
+            {pickerMode !== null && moment !== null && pickerMax !== null ? (
                 <DateTimePicker
                     value={moment}
                     mode={pickerMode}
                     display="default"
                     is24Hour={true}
-                    maximumDate={pickerMax ?? undefined}
+                    maximumDate={pickerMax}
                     onChange={(event, date) => {
                         if (event.type === 'set' && date !== undefined) {
                             // Мердж пикеров в один Date: диалог даты меняет

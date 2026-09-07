@@ -1,6 +1,6 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
     Alert,
     FlatList,
@@ -73,6 +73,16 @@ export default function JournalScreen() {
     // Фильтр периода списка; дефолт «Всё время».
     const [period, setPeriod] = useState<PeriodFilter>({ kind: 'all' });
 
+    // Текущий фильтр для load: ref читается в момент вызова, поэтому load
+    // имеет стабильную identity (deps []) — смена фильтра не перезапускает
+    // useFocusEffect вторым идентичным запросом.
+    const periodRef = useRef<PeriodFilter>({ kind: 'all' });
+
+    // Порядковый номер загрузки: состояние пишет только последний начатый
+    // запрос — устаревший ответ при быстром переключении фильтров не
+    // перезапишет свежие данные.
+    const requestSeqRef = useRef(0);
+
     // Развёрнута ли строка выбора произвольного периода.
     const [customOpen, setCustomOpen] = useState(false);
 
@@ -87,33 +97,38 @@ export default function JournalScreen() {
     const [periodError, setPeriodError] = useState<string | null>(null);
 
     /**
-     * Загрузка списка по фильтру p (по умолчанию — текущий period): явный
-     * параметр устраняет stale closure сразу после применения нового
-     * фильтра. При неудачном рефетче уже показанный список остаётся.
+     * Загрузка списка по текущему фильтру (periodRef). При неудачном
+     * рефетче уже показанный список остаётся.
      */
-    const load = useCallback(
-        async (p: PeriodFilter = period): Promise<void> => {
-            setRefreshing(true);
-            const range = periodToRange(p);
+    const load = useCallback(async (): Promise<void> => {
+        const seq = ++requestSeqRef.current;
 
-            try {
-                const response = await listSeizures({
-                    timezone: deviceTimezone(),
-                    ...(range ?? {}),
-                });
+        setRefreshing(true);
 
+        const range = periodToRange(periodRef.current);
+
+        try {
+            const response = await listSeizures({
+                timezone: deviceTimezone(),
+                ...(range ?? {}),
+            });
+
+            if (seq === requestSeqRef.current) {
                 setItems(response.data);
                 setLoadError(null);
-            } catch (error) {
-                // items не трогаем; не-ApiError тоже попадает в loadError —
-                // рендер покажет для него общий текст.
+            }
+        } catch (error) {
+            // items не трогаем; не-ApiError тоже попадает в loadError —
+            // рендер покажет для него общий текст.
+            if (seq === requestSeqRef.current) {
                 setLoadError(error);
-            } finally {
+            }
+        } finally {
+            if (seq === requestSeqRef.current) {
                 setRefreshing(false);
             }
-        },
-        [period],
-    );
+        }
+    }, []);
 
     // Один механизм на монтирование и возвраты из new/settings
     // (включая системный back) — вариант A дизайн-документа.
@@ -167,11 +182,12 @@ export default function JournalScreen() {
     /** Применение фильтра: новый запрос = новое «первое» состояние, строки
      *  и ошибки предыдущего периода не висят рядом — до ответа «Загрузка…». */
     function applyPeriod(next: PeriodFilter): void {
+        periodRef.current = next;
         setPeriod(next);
         setPeriodError(null);
         setItems(null);
         setLoadError(null);
-        void load(next);
+        void load();
     }
 
     /** «Применить» в custom-строке: от > до — ошибка, запрос не шлём. */
@@ -245,7 +261,10 @@ export default function JournalScreen() {
                 ))}
                 <Pressable
                     accessibilityRole="button"
-                    accessibilityState={{ selected: period.kind === 'custom' }}
+                    accessibilityState={{
+                        selected: period.kind === 'custom',
+                        expanded: customOpen,
+                    }}
                     style={[
                         styles.chip,
                         period.kind === 'custom' && styles.chipSelected,

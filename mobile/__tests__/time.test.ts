@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+    formatHm,
     formatLocalDateTime,
     formatYmd,
     isBeyondNowPlusMinutes,
     parseUtcIso,
+    startOfMinute,
     toNaiveLocalIso,
 } from '@/utils/time';
 
@@ -101,5 +103,29 @@ describe('isBeyondNowPlusMinutes', () => {
 
     it('прошлое (now − 1 час) → false', () => {
         expect(isBeyondNowPlusMinutes(at(-60 * 60_000), 5, now)).toBe(false);
+    });
+});
+
+describe('formatHm', () => {
+    it('собирает «ЧЧ:ММ» из локальных геттеров с паддингом', () => {
+        expect(formatHm(new Date(2026, 4, 10, 9, 5))).toBe('09:05');
+        expect(formatHm(new Date(2026, 4, 10, 23, 59))).toBe('23:59');
+    });
+});
+
+describe('startOfMinute', () => {
+    it('округляет вниз: секунды и миллисекунды — в ноль, минута та же', () => {
+        const rounded = startOfMinute(new Date(2026, 4, 10, 9, 5, 42, 999));
+
+        expect(rounded.getHours()).toBe(9);
+        expect(rounded.getMinutes()).toBe(5);
+        expect(rounded.getSeconds()).toBe(0);
+        expect(rounded.getMilliseconds()).toBe(0);
+    });
+
+    it('момент на границе минуты не сдвигается', () => {
+        const boundary = new Date(2026, 4, 10, 9, 5, 0, 0);
+
+        expect(startOfMinute(boundary).getTime()).toBe(boundary.getTime());
     });
 });

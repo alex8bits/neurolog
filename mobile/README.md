@@ -70,7 +70,7 @@ npx expo run:android                   # соберёт и поставит debu
 
 В Expo Go **`activity-alias` (вторая иконка «Приступ» в лаунчере) НЕ работает** — это известное ограничение. Для проверки самой иконки (Этап 3) нужен dev или preview build через EAS / `expo run:android` (см. [«Локальная проверка двух иконок»](#локальная-проверка-двух-иконок-этап-3)).
 
-Противоположный случай — `@react-native-community/datetimepicker` (пикеры даты/времени в записи задним числом, Этап 4): это нативный модуль, но в Expo Go он работает из коробки. А вот debug/dev-сборки, собранные до Этапа 4, нужно пересобрать (`npx expo prebuild --platform android` + `npx expo run:android`) — иначе импорт модуля упадёт.
+Противоположный случай — `@react-native-community/datetimepicker` (пикеры даты/времени в записи задним числом, Этап 4): это нативный модуль, но в Expo Go он работает из коробки. А вот debug/dev-сборки, собранные до Этапа 4, нужно пересобрать — локально (`npx expo prebuild --platform android` + `npx expo run:android`) или через EAS (`eas build --profile development --platform android`) — иначе импорт модуля упадёт.
 
 Быстрый поток `/quick` можно прогнать и без нативной сборки — открыть экран deep-link'ом. В Expo Go (запущен `npx expo start`, проект открыт на устройстве/эмуляторе):
 
@@ -118,8 +118,9 @@ mobile/
 │   ├── _layout.tsx   # root Stack + AuthProvider + роутинг-гард (returnTo)
 │   ├── (auth)/       # login.tsx / register.tsx (форвард returnTo)
 │   ├── quick.tsx     # быстрый вход: маршрут /quick (иконка «Приступ»)
-│   └── (journal)/    # _layout.tsx (Stack группы), index.tsx (список,
-│                     # маршрут «/»), new.tsx (создание «сейчас»),
+│   └── (journal)/    # _layout.tsx (Stack группы), index.tsx (список
+│                     # с фильтром периода, маршрут «/»), new.tsx
+│                     # (создание: «сейчас» или точное время),
 │                     # settings.tsx (email/выход)
 ├── plugins/
 │   └── activity-alias/  # config plugin второй иконки: plugin.ts +
@@ -127,16 +128,18 @@ mobile/
 ├── src/
 │   ├── api/          # client.ts (refresh-очередь), auth.ts,
 │   │                 # seizures.ts (list/create/delete), types.ts
-│   ├── auth/         # tokens.ts (SecureStore), AuthContext.tsx
+│   ├── auth/         # tokens.ts (SecureStore), AuthContext.tsx,
+│   │                 # returnTo.ts (белый список возврата после логина)
 │   ├── config/       # env.ts, timezone.ts
 │   └── utils/        # errors.ts, time.ts (парсер/форматтер UTC-ISO,
-│                     # Y-m-d/наивные строки, проверка будущего),
-│                     # period.ts (пресеты фильтра периода → from/to)
+│                     # Y-m-d/наивные строки/HH:MM, округление до минуты,
+│                     # проверка будущего), period.ts (пресеты фильтра
+│                     # периода → from/to)
 ├── assets/           # иконки
 └── __tests__/        # полный список тестов:
                        # activity-alias-plugin.test.ts, api-client.test.ts,
                        # period.test.ts, refresh-queue.test.ts,
-                       # return-to.test.ts, time.test.ts
+                       # return-to.test.ts, seizures.test.ts, time.test.ts
 ```
 
 ## Связанные документы

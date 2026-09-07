@@ -42,8 +42,6 @@ export function formatLocalDateTime(value: string): string {
         return value;
     }
 
-    const pad = (part: number) => String(part).padStart(2, '0');
-
     return `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()}, ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
@@ -78,4 +76,15 @@ export function isBeyondNowPlusMinutes(
     now: Date = new Date(),
 ): boolean {
     return date.getTime() > now.getTime() + minutes * 60_000;
+}
+
+/** «09:05» из локальных геттеров — подпись кнопки «Время» у пикера. */
+export function formatHm(date: Date): string {
+    return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/** Момент, округлённый вниз до минуты (секунды/мс — в ноль): стартовое
+ *  значение пикера «Точное время»; date — параметр для тестируемости. */
+export function startOfMinute(date: Date = new Date()): Date {
+    return new Date(Math.floor(date.getTime() / 60_000) * 60_000);
 }

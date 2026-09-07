@@ -49,9 +49,30 @@ describe('patchMainActivity', () => {
         expect(patched).toContain(
             '  private fun stampQuickIntent(intent: Intent?) {',
         );
+        expect(patched).toContain('intent.action = Intent.ACTION_VIEW');
         expect(patched).toContain('intent.data = Uri.parse("seizure://quick")');
         expect(patched).toContain('import android.content.Intent');
         expect(patched).toContain('import android.net.Uri');
+    });
+
+    it('stamp: лаунчерный intent (ACTION_MAIN) превращается в VIEW-deep-link — action ставится до data', () => {
+        const patched = patchMainActivity(TEMPLATE);
+
+        // Гвард прежний: только alias-компонент и только без существующего data.
+        expect(patched).toContain(
+            'if (component.className == "$packageName.QuickEntryAlias" && intent.data == null) {',
+        );
+        // Оба якоря обязаны существовать: без гвардов -1 делал бы сравнение
+        // порядка ложно-зелёным (например, -1 < 0 при пропавшей первой строке).
+        const actionIndex = patched.indexOf(
+            'intent.action = Intent.ACTION_VIEW',
+        );
+        const dataIndex = patched.indexOf(
+            'intent.data = Uri.parse("seizure://quick")',
+        );
+        expect(actionIndex).toBeGreaterThanOrEqual(0);
+        expect(dataIndex).toBeGreaterThanOrEqual(0);
+        expect(actionIndex).toBeLessThan(dataIndex);
     });
 
     it('happy path: импорты вставлены в алфавитном порядке блока', () => {

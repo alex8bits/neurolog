@@ -187,6 +187,13 @@ export default function JournalScreen() {
         setPeriodError(null);
         setItems(null);
         setLoadError(null);
+
+        // Панель custom-диапазона сворачиваем только для пресетов: при
+        // applyCustomPeriod она остаётся открытой — пользователь настраивает.
+        if (next.kind !== 'custom') {
+            setCustomOpen(false);
+        }
+
         void load();
     }
 

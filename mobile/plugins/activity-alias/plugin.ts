@@ -266,7 +266,10 @@ function copyLegacyLauncherIcons(resRoot: string): void {
 
 /**
  * Патч MainActivity.kt: onCreate/onNewIntent при запуске через alias
- * проставляют intent.data = seizure://quick ДО super — настоящий deep-link
+ * превращают лаунчерный intent (ACTION_MAIN + LAUNCHER) в полноценный
+ * deep-link: ДО super ставят action = ACTION_VIEW и
+ * data = seizure://quick (RN/expo-router на холодном старте трактует
+ * intent как deep-link только при ACTION_VIEW) — настоящий deep-link
  * (intent.data != null) не затираем. Идемпотентно: повторно не патчится.
  * Fail-fast: якорь класса и существующий onCreate обязательны — шаблон
  * без onCreate не поддерживается (генерировать свой override ненадёжно:
@@ -320,6 +323,7 @@ export function patchMainActivity(source: string): string {
         '  private fun stampQuickIntent(intent: Intent?) {',
         '    val component = intent?.component ?: return',
         `    if (component.className == "$packageName${ALIAS_CLASS_SUFFIX}" && intent.data == null) {`,
+        '      intent.action = Intent.ACTION_VIEW',
         `      intent.data = Uri.parse("${QUICK_ENTRY_URI}")`,
         '    }',
         '  }',

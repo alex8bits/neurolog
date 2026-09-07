@@ -4,7 +4,10 @@ import { API_BASE_URL } from '@/config/env';
 import { ApiError } from '@/utils/errors';
 
 export interface ApiFetchInit {
-    method?: 'GET' | 'POST' | 'DELETE';
+    // PATCH добавлен для updateSeizure (редактирование записи); на сам
+    // запрос/refresh-очередь расширение не влияет — fetch принимает любой
+    // HTTP-метод, union нужен только типам.
+    method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
 
     /** Сериализуется в JSON и ставит Content-Type: application/json. */
     body?: unknown;

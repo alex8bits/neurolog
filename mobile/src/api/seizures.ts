@@ -40,3 +40,17 @@ export async function createSeizure(
 export async function deleteSeizure(id: number): Promise<void> {
     await apiFetch<void>(`/seizures/${id}`, { method: 'DELETE' });
 }
+
+/** PATCH /seizures/{id}: правка существующей записи; тело и 422 — как у
+ *  create, 404 — чужая/удалённая запись. */
+export async function updateSeizure(
+    id: number,
+    input: CreateSeizureInput,
+): Promise<Seizure> {
+    const response = await apiFetch<SeizureResponse>(`/seizures/${id}`, {
+        method: 'PATCH',
+        body: input,
+    });
+
+    return response.data;
+}

@@ -63,9 +63,10 @@ function rowTimeLabel(occurredAt: string): string {
 /**
  * Журнал — список приступов, маршрут «/» (владелец — группа (journal)).
  * Загрузка при фокусе экрана и по pull-to-refresh; порядок строк задаёт
- * сервер (occurred_at DESC, id DESC) — на клиенте не сортируем. Удаление —
- * long-press по строке с подтверждением через Alert. Гард корневого
- * layout сам уводит на логин при истечении сессии.
+ * сервер (occurred_at DESC, id DESC) — на клиенте не сортируем. Long-press
+ * по строке открывает диалог действий (редактирование / удаление с
+ * подтверждением) и подсвечивает строку. Гард корневого layout сам уводит
+ * на логин при истечении сессии.
  *
  * Фильтр периода: дефолт «Всё время» (from/to не шлются), пресеты
  * «Сегодня / 7 дней / 30 дней» и «Произвольный период». Границы from/to
@@ -91,6 +92,11 @@ export default function JournalScreen() {
 
     // Блокирует повторный запуск удаления той же строки.
     const [deletingId, setDeletingId] = useState<number | null>(null);
+
+    // Строка, к которой открыт диалог действий (long-press): подсветка
+    // фона живёт, пока диалог открыт — гасится каждой кнопкой диалога
+    // и закрытием мимо него (onDismiss Android: тап вне / системный back).
+    const [activeRowId, setActiveRowId] = useState<number | null>(null);
 
     // Фильтр периода списка; дефолт «Всё время».
     const [period, setPeriod] = useState<PeriodFilter>({ kind: 'all' });
@@ -152,7 +158,7 @@ export default function JournalScreen() {
         }
     }, []);
 
-    // Один механизм на монтирование и возвраты из new/settings
+    // Один механизм на монтирование и возвраты из edit/new/settings
     // (включая системный back) — вариант A дизайн-документа.
     useFocusEffect(
         useCallback(() => {
@@ -171,7 +177,57 @@ export default function JournalScreen() {
         );
     }
 
-    /** Подтверждение удаления: long-press по строке списка. */
+    /** Long-press по строке: подсветка + диалог действий — правка или
+     *  удаление (удаление ещё подтверждается отдельным Alert). Подсветку
+     *  строки гасит любая кнопка диалога и его закрытие без кнопки
+     *  (onDismiss — тап вне диалога / back на Android; на iOS Алерт
+     *  без кнопки не закрывается). */
+    function openRowActions(seizure: Seizure): void {
+        setActiveRowId(seizure.id);
+
+        Alert.alert(
+            'Запись',
+            rowTimeLabel(seizure.occurred_at),
+            [
+                {
+                    text: 'Отмена',
+                    style: 'cancel',
+                    onPress: () => {
+                        setActiveRowId(null);
+                    },
+                },
+                {
+                    text: 'Редактировать',
+                    onPress: () => {
+                        setActiveRowId(null);
+                        router.push({
+                            pathname: '/edit',
+                            params: {
+                                id: String(seizure.id),
+                                occurredAt: seizure.occurred_at,
+                                comment: seizure.comment ?? '',
+                            },
+                        });
+                    },
+                },
+                {
+                    text: 'Удалить',
+                    style: 'destructive',
+                    onPress: () => {
+                        setActiveRowId(null);
+                        confirmDelete(seizure);
+                    },
+                },
+            ],
+            {
+                onDismiss: () => {
+                    setActiveRowId(null);
+                },
+            },
+        );
+    }
+
+    /** Второй шаг удаления после «Удалить» в диалоге действий строки. */
     function confirmDelete(seizure: Seizure): void {
         Alert.alert('Удалить запись?', 'Действие нельзя отменить.', [
             { text: 'Отмена', style: 'cancel' },
@@ -461,10 +517,10 @@ export default function JournalScreen() {
                                 <Pressable
                                     key={seizure.id}
                                     accessibilityRole="button"
-                                    accessibilityHint="Долгое нажатие — удаление записи"
+                                    accessibilityHint="Долгое нажатие — действия с записью"
                                     disabled={deletingId === seizure.id}
                                     onLongPress={() => {
-                                        confirmDelete(seizure);
+                                        openRowActions(seizure);
                                     }}
                                     style={[
                                         styles.row,
@@ -472,6 +528,11 @@ export default function JournalScreen() {
                                             styles.rowSeparator,
                                         deletingId === seizure.id &&
                                             styles.rowDisabled,
+                                        // Подсветка важнее чередующегося фона
+                                        // группы: выбранная строка читается
+                                        // поверх полосы дня.
+                                        activeRowId === seizure.id &&
+                                            styles.rowActive,
                                     ]}
                                 >
                                     <Text style={styles.rowTime}>
@@ -657,6 +718,11 @@ const styles = StyleSheet.create({
     },
     rowDisabled: {
         opacity: 0.6,
+    },
+    // Лёгкий индиго-акцент строки с открытым диалогом действий — поверх
+    // фона группы (белый/серый), гасится любой кнопкой диалога.
+    rowActive: {
+        backgroundColor: '#E8EAF6',
     },
     rowTime: {
         color: '#000',

@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { apiFetch } from '@/api/client';
-import { createSeizure, deleteSeizure, listSeizures } from '@/api/seizures';
+import {
+    createSeizure,
+    deleteSeizure,
+    listSeizures,
+    updateSeizure,
+} from '@/api/seizures';
 
 vi.mock('@/api/client', () => ({
     apiFetch: vi.fn().mockResolvedValue({ data: [] }),
@@ -73,5 +78,30 @@ describe('deleteSeizure', () => {
         expect(apiFetchMock).toHaveBeenCalledWith('/seizures/42', {
             method: 'DELETE',
         });
+    });
+});
+
+describe('updateSeizure', () => {
+    it('PATCH по id с телом как есть, возвращает распакованный .data', async () => {
+        const input = {
+            timezone: 'Europe/Moscow',
+            comment: 'x',
+            occurred_at: '2026-09-07T10:00:00',
+        };
+        const seizure = {
+            id: 42,
+            occurred_at: '2026-09-07T07:00:00.000000Z',
+            comment: 'x',
+            created_at: '2026-09-07T09:00:00.000000Z',
+        };
+        apiFetchMock.mockResolvedValueOnce({ data: seizure });
+
+        const result = await updateSeizure(42, input);
+
+        expect(apiFetchMock).toHaveBeenCalledWith('/seizures/42', {
+            method: 'PATCH',
+            body: input,
+        });
+        expect(result).toEqual(seizure);
     });
 });

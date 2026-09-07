@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\IndexSeizureRequest;
 use App\Http\Requests\Api\V1\StoreSeizureRequest;
+use App\Http\Requests\Api\V1\UpdateSeizureRequest;
 use App\Http\Resources\Api\V1\SeizureResource;
 use App\Services\SeizureQuery;
 use App\Services\SeizureWriter;
@@ -49,6 +50,25 @@ class SeizureController extends Controller
         );
 
         return SeizureResource::collection($paginator);
+    }
+
+    /**
+     * Replace the editable fields of one of the authenticated user's seizures.
+     *
+     * Owner resolution and the rationale for the `string` parameter live on
+     * `App\Services\SeizureWriter::update()`.
+     */
+    public function update(UpdateSeizureRequest $request, string $seizure): JsonResponse
+    {
+        $updated = $this->writer->update(
+            $request->user(),
+            $seizure,
+            $request->occurredAtInput(),
+            $request->commentInput(),
+            $request->timezoneInput(),
+        );
+
+        return SeizureResource::make($updated)->response();
     }
 
     /**

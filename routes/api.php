@@ -37,6 +37,10 @@ Route::middleware('auth:sanctum')->name('api.v1.')->group(function () {
 
     // Параметр {seizure} намеренно без route-model binding: разрешение записи
     // с проверкой владельца делает контроллер через $request->user()->seizures().
+    Route::patch('seizures/{seizure}', [SeizureController::class, 'update'])
+        ->whereNumber('seizure')
+        ->name('seizures.update');
+
     Route::delete('seizures/{seizure}', [SeizureController::class, 'destroy'])
         ->whereNumber('seizure')
         ->name('seizures.destroy');

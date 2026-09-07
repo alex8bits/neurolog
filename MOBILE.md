@@ -1,7 +1,7 @@
 # Мобильный клиент «График приступов»
 
 > Статус: предложение (без кода). Отдельный репозиторий, не этот Laravel-проект.
-> Серверный контракт уже есть: JSON API `/api/v1` (Sanctum + refresh, seizures create/list/delete).
+> Серверный контракт уже есть: JSON API `/api/v1` (Sanctum + refresh, seizures create/list/update/delete).
 
 ## 1. Зачем этот документ
 
@@ -139,9 +139,10 @@
 |---|---|---|
 | POST | `/seizures` | Создать. 201 + ресурс |
 | GET | `/seizures` | Список. `from`, `to` (`Y-m-d`), `timezone`, `per_page` (1–100, по умолчанию 50), `page` |
+| PATCH | `/seizures/{id}` | Редактировать. 200 + ресурс. PUT-семантика: клиент всегда шлёт оба поля. Чужой/нет — 404 |
 | DELETE | `/seizures/{id}` | Мягкое удаление. 204. Чужой/нет — 404 |
 
-Нет `GET` по id и нет `PATCH` на API. Редактирование — только веб.
+Нет `GET` по id. Редактирование — `PATCH` с PUT-семантикой: всегда отправляются оба поля `occurred_at` + `comment`; `comment: null` — очистить, `occurred_at: null` (или без поля) — «сейчас». Валидация и `timezone` — как у создания.
 
 Ресурс приступа: `id`, `occurred_at`, `comment`, `created_at`. Моменты — UTC ISO-8601 с микросекундами (`…Z`). `user_id` и `deleted_at` не отдаются.
 

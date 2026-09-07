@@ -37,8 +37,9 @@ const open = ref(false);
                 <DialogHeader class="space-y-3">
                     <DialogTitle>Новая запись</DialogTitle>
                     <DialogDescription>
-                        Укажите дату и время в вашем часовом поясе. Если оставить
-                        пустым — сохранится момент отправки. Комментарий необязателен.
+                        Укажите дату и время в вашем часовом поясе. Если
+                        оставить пустым — сохранится момент отправки.
+                        Комментарий необязателен.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -54,11 +55,7 @@ const open = ref(false);
 
                 <div class="grid gap-2">
                     <Label for="comment">Комментарий</Label>
-                    <Input
-                        id="comment"
-                        name="comment"
-                        maxlength="2000"
-                    />
+                    <Input id="comment" name="comment" maxlength="2000" />
                     <InputError :message="errors.comment" />
                 </div>
 

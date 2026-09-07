@@ -55,9 +55,7 @@ const pageLinks = computed(() =>
         <div class="flex items-center justify-end">
             <CreateSeizureDialog>
                 <template #trigger>
-                    <Button>
-                        + Новая запись
-                    </Button>
+                    <Button> + Новая запись </Button>
                 </template>
             </CreateSeizureDialog>
         </div>

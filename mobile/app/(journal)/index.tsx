@@ -1,5 +1,6 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFocusEffect, useRouter } from 'expo-router';
+import * as Sharing from 'expo-sharing';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
     Alert,
@@ -12,8 +13,13 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { deleteSeizure, listSeizures } from '@/api/seizures';
-import type { Seizure } from '@/api/types';
+import {
+    deleteSeizure,
+    emailSeizuresSelf,
+    exportSeizuresDocx,
+    listSeizures,
+} from '@/api/seizures';
+import type { ExportPeriodParams, Seizure } from '@/api/types';
 import { deviceTimezone } from '@/config/timezone';
 import {
     formatDayTitle,
@@ -26,6 +32,10 @@ import type { PeriodFilter } from '@/utils/period';
 import { formatHm, formatYmd, parseUtcIso } from '@/utils/time';
 
 const GENERIC_ERROR_TEXT = 'Сервер недоступен, попробуйте позже.';
+
+/** MIME DOCX-отчёта — expo-sharing передаёт его системному шарингу. */
+const DOCX_MIME =
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
 /** Чипы-пресеты фильтра периода; «Произвольный период» — отдельный чип. */
 const PERIOD_PRESETS: { filter: PeriodFilter; label: string }[] = [
@@ -47,8 +57,9 @@ function loadErrorText(error: unknown): string {
     return GENERIC_ERROR_TEXT;
 }
 
-/** Текст ошибки удаления: ApiError — по kind, неожиданное — общий. */
-function deleteErrorText(error: unknown): string {
+/** Текст ошибки действия над журналом (удаление/экспорт/письмо):
+ *  ApiError — по kind, неожиданное — общий. */
+function actionErrorText(error: unknown): string {
     return error instanceof ApiError ? userMessage(error) : GENERIC_ERROR_TEXT;
 }
 
@@ -73,6 +84,12 @@ function rowTimeLabel(occurredAt: string): string {
  * считает periodToRange, сервер трактует их включительно целыми
  * календарными днями в поданной timezone — экран не делает дата-арифметики.
  *
+ * Экспорт под фильтром: «Сохранить DOCX» — отчёт скачивается и уходит в
+ * системный шаринг (сохранить/отправить), «Отправить себе» — письмо с
+ * отчётом на email владельца, «Отправить доктору» — экран-форма письма;
+ * период каждого действия — текущий фильтр. Печать отсутствует намеренно:
+ * остаётся веб-only, вне скоупа мобильного.
+ *
  * Строки сгруппированы по календарным дням (groupSeizuresByDay): заголовок
  * дня с количеством приступов, внутри — только время и комментарий; фон
  * групп чередуется, чтобы дни визуально отделялись. Контент не залезает
@@ -92,6 +109,12 @@ export default function JournalScreen() {
 
     // Блокирует повторный запуск удаления той же строки.
     const [deletingId, setDeletingId] = useState<number | null>(null);
+
+    // Блокирует повторный запуск экспорта DOCX (скачивание + шаринг).
+    const [docxSaving, setDocxSaving] = useState(false);
+
+    // Блокирует повторную отправку письма себе.
+    const [emailingSelf, setEmailingSelf] = useState(false);
 
     // Строка, к которой открыт диалог действий (long-press): подсветка
     // фона живёт, пока диалог открыт — гасится каждой кнопкой диалога
@@ -254,7 +277,7 @@ export default function JournalScreen() {
                 removeLocalItem(id);
             } else {
                 // Сеть/5xx — инлайн-текст, запись остаётся в списке.
-                setInlineError(deleteErrorText(error));
+                setInlineError(actionErrorText(error));
             }
         } finally {
             setDeletingId(null);
@@ -291,6 +314,74 @@ export default function JournalScreen() {
         }
 
         applyPeriod({ kind: 'custom', from, to });
+    }
+
+    /** Параметры периода для экспорта/писем: те же timezone/from/to, что
+     *  уходят в listSeizures — читает periodRef, то есть фильтр актуален
+     *  на момент нажатия кнопки. */
+    function periodParams(): ExportPeriodParams {
+        return {
+            timezone: deviceTimezone(),
+            ...(periodToRange(periodRef.current) ?? {}),
+        };
+    }
+
+    /** «Сохранить DOCX»: отчёт за текущий период скачивается в файл и
+     *  уходит в системный шаринг (Android: «Сохранить в Файлы»/Диск/
+     *  отправить). На Android shareAsync резолвится запуском интента —
+     *  закрытие шаринг-шита пользователем не попадает в catch. */
+    async function saveDocx(): Promise<void> {
+        if (docxSaving) {
+            return;
+        }
+
+        setDocxSaving(true);
+
+        try {
+            const { fileUri } = await exportSeizuresDocx(periodParams());
+
+            await Sharing.shareAsync(fileUri, { mimeType: DOCX_MIME });
+        } catch (error) {
+            Alert.alert('Экспорт', actionErrorText(error));
+        } finally {
+            setDocxSaving(false);
+        }
+    }
+
+    /** «Отправить себе»: письмо с отчётом текущего периода на email
+     *  владельца; фидбек — Alert с message сервера. */
+    async function sendSelf(): Promise<void> {
+        if (emailingSelf) {
+            return;
+        }
+
+        setEmailingSelf(true);
+
+        try {
+            const response = await emailSeizuresSelf(periodParams());
+
+            Alert.alert('Отправить себе', response.message);
+        } catch (error) {
+            Alert.alert('Отправить себе', actionErrorText(error));
+        } finally {
+            setEmailingSelf(false);
+        }
+    }
+
+    /** «Отправить доктору»: переход на экран-форму письма с периодом
+     *  текущего фильтра; роут-параметры — строки: timezone всегда,
+     *  from/to — только непустые. */
+    function openEmailDoctor(): void {
+        const { timezone, from, to } = periodParams();
+
+        router.push({
+            pathname: '/(journal)/email-doctor',
+            params: {
+                timezone,
+                ...(from !== undefined ? { from } : {}),
+                ...(to !== undefined ? { to } : {}),
+            },
+        });
     }
 
     // Шапка: «Настройки» и «+» идут на абсолютные typed routes
@@ -440,6 +531,42 @@ export default function JournalScreen() {
                     ) : null}
                 </View>
             ) : null}
+
+            {/* Экспорт-ряд: сетка chips, кнопки — аутлайн-chip без
+                выбранного состояния. */}
+            <View style={styles.chips}>
+                <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: docxSaving }}
+                    disabled={docxSaving}
+                    style={[styles.chip, docxSaving && styles.actionDisabled]}
+                    onPress={() => {
+                        void saveDocx();
+                    }}
+                >
+                    <Text style={styles.chipLabel}>
+                        {docxSaving ? 'Сохраняем…' : 'Сохранить DOCX'}
+                    </Text>
+                </Pressable>
+                <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: emailingSelf }}
+                    disabled={emailingSelf}
+                    style={[styles.chip, emailingSelf && styles.actionDisabled]}
+                    onPress={() => {
+                        void sendSelf();
+                    }}
+                >
+                    <Text style={styles.chipLabel}>Отправить себе</Text>
+                </Pressable>
+                <Pressable
+                    accessibilityRole="button"
+                    style={styles.chip}
+                    onPress={openEmailDoctor}
+                >
+                    <Text style={styles.chipLabel}>Отправить доктору</Text>
+                </Pressable>
+            </View>
 
             {items !== null && loadError !== null ? (
                 <Text style={styles.inlineError}>
@@ -649,6 +776,9 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 14,
         fontWeight: '600',
+    },
+    actionDisabled: {
+        opacity: 0.6,
     },
     inlineError: {
         color: '#d32f2f',

@@ -1,19 +1,25 @@
-import { apiFetch } from '@/api/client';
+import { File, Paths } from 'expo-file-system';
+
+import { apiDownload, apiFetch } from '@/api/client';
 import type {
     CreateSeizureInput,
+    EmailDoctorInput,
+    EmailMessageResponse,
+    ExportPeriodParams,
     ListSeizuresParams,
     Seizure,
     SeizureListResponse,
     SeizureResponse,
 } from '@/api/types';
+import { filenameFromContentDisposition } from '@/utils/contentDisposition';
 
 /** Этап 2 фиксирует per_page=50 (PLAN.md); максимум сервера — 100. */
 const PER_PAGE = 50;
 
-export async function listSeizures(
-    params: ListSeizuresParams,
-): Promise<SeizureListResponse> {
-    let query = `per_page=${PER_PAGE}&timezone=${encodeURIComponent(params.timezone)}`;
+/** Общая часть query списка/экспорта/писем: timezone всегда, from/to — при
+ *  наличии; кодирование и порядок параметров — как у GET /seizures. */
+function periodQuery(params: ExportPeriodParams): string {
+    let query = `timezone=${encodeURIComponent(params.timezone)}`;
 
     if (params.from !== undefined) {
         query += `&from=${encodeURIComponent(params.from)}`;
@@ -23,7 +29,15 @@ export async function listSeizures(
         query += `&to=${encodeURIComponent(params.to)}`;
     }
 
-    return apiFetch<SeizureListResponse>(`/seizures?${query}`);
+    return query;
+}
+
+export async function listSeizures(
+    params: ListSeizuresParams,
+): Promise<SeizureListResponse> {
+    return apiFetch<SeizureListResponse>(
+        `/seizures?per_page=${PER_PAGE}&${periodQuery(params)}`,
+    );
 }
 
 export async function createSeizure(
@@ -53,4 +67,56 @@ export async function updateSeizure(
     });
 
     return response.data;
+}
+
+/** GET /seizures/export.docx: скачивает бинарный отчёт за период, имя файла
+ *  берёт из Content-Disposition (RFC 5987) и пишет байты в документ-директорию
+ *  (перезапись одноимённого файла допустима); fileUri — для expo-sharing. */
+export async function exportSeizuresDocx(
+    params: ExportPeriodParams,
+): Promise<{ fileUri: string; filename: string }> {
+    const response = await apiDownload(
+        `/seizures/export.docx?${periodQuery(params)}`,
+    );
+
+    const filename = filenameFromContentDisposition(
+        response.headers.get('content-disposition'),
+    );
+
+    const bytes = new Uint8Array(await response.arrayBuffer());
+
+    const file = new File(Paths.document, filename);
+
+    file.write(bytes);
+
+    return { fileUri: file.uri, filename };
+}
+
+/** POST /seizures/email-self: отчёт за период на почту самого пользователя. */
+export async function emailSeizuresSelf(
+    params: ExportPeriodParams,
+): Promise<EmailMessageResponse> {
+    return apiFetch<EmailMessageResponse>(
+        `/seizures/email-self?${periodQuery(params)}`,
+        { method: 'POST' },
+    );
+}
+
+/** POST /seizures/email-doctor: отчёт за период на адрес врача; пустые
+ *  subject/body передаются как undefined — JSON.stringify выкинет ключи. */
+export async function emailSeizuresDoctor(
+    params: ExportPeriodParams,
+    input: EmailDoctorInput,
+): Promise<EmailMessageResponse> {
+    return apiFetch<EmailMessageResponse>(
+        `/seizures/email-doctor?${periodQuery(params)}`,
+        {
+            method: 'POST',
+            body: {
+                to: input.to,
+                subject: input.subject || undefined,
+                body: input.body || undefined,
+            },
+        },
+    );
 }

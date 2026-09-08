@@ -65,3 +65,22 @@ export interface ListSeizuresParams {
     from?: string; // Y-m-d
     to?: string; // Y-m-d
 }
+
+/** Период экспорта/писем: те же параметры, что у списка (GET /seizures). */
+export interface ExportPeriodParams {
+    timezone: string; // IANA
+    from?: string; // Y-m-d
+    to?: string; // Y-m-d
+}
+
+/** Тело POST /seizures/email-doctor. */
+export interface EmailDoctorInput {
+    to: string;
+    subject?: string;
+    body?: string;
+}
+
+/** Тело 200 email-self / email-doctor. */
+export interface EmailMessageResponse {
+    message: string;
+}

@@ -2,7 +2,7 @@ import * as SecureStore from 'expo-secure-store';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
-import { __resetForTests, apiFetch } from '@/api/client';
+import { __resetForTests, apiDownload, apiFetch } from '@/api/client';
 import type { StoredAuth } from '@/auth/tokens';
 import { API_BASE_URL } from '@/config/env';
 import { ApiError, userMessage } from '@/utils/errors';
@@ -16,6 +16,9 @@ vi.mock('expo-secure-store', () => ({
 
 const getItemAsync = SecureStore.getItemAsync as unknown as Mock<
     (key: string) => Promise<string | null>
+>;
+const setItemAsync = SecureStore.setItemAsync as unknown as Mock<
+    (key: string, value: string) => Promise<void>
 >;
 
 const fetchMock = vi.fn();
@@ -221,5 +224,123 @@ describe('apiFetch: маппинг статусов в ApiError', () => {
         });
 
         expect(result).toBeNull();
+    });
+});
+
+describe('apiDownload', () => {
+    const EXPORT_URL = `${API_BASE_URL}/seizures/export.docx`;
+    const REFRESH_URL = `${API_BASE_URL}/token/refresh`;
+
+    /** DOCX-подобное тело: 2 байта сигнатуры PK zip-архива. */
+    function docxResponse(): Response {
+        return new Response(new Uint8Array([0x50, 0x4b]), { status: 200 });
+    }
+
+    it('успех: Response с нетронутым бинарным телом, запрос с Bearer', async () => {
+        getItemAsync.mockResolvedValue(JSON.stringify(storedAuth()));
+        fetchMock.mockResolvedValue(docxResponse());
+
+        const result = await apiDownload('/seizures/export.docx');
+
+        expect(result).toBeInstanceOf(Response);
+        expect(result.status).toBe(200);
+        expect(new Uint8Array(await result.arrayBuffer())).toEqual(
+            new Uint8Array([0x50, 0x4b]),
+        );
+
+        const [url, init] = fetchMock.mock.calls[0];
+
+        expect(url).toBe(EXPORT_URL);
+        expect(init.headers.Authorization).toBe('Bearer access-1');
+    });
+
+    it('401 → refresh → повтор: возвращён второй Response, refresh один', async () => {
+        let value = JSON.stringify(storedAuth());
+
+        getItemAsync.mockImplementation(async () => value);
+        setItemAsync.mockImplementation(async (_key: string, raw: string) => {
+            value = raw;
+        });
+
+        let exportCalls = 0;
+
+        fetchMock.mockImplementation(async (url: string) => {
+            if (url === REFRESH_URL) {
+                return jsonResponse(200, {
+                    data: {
+                        access_token: 'access-2',
+                        refresh_token: 'refresh-2',
+                        token_type: 'Bearer',
+                        expires_in: 2592000,
+                    },
+                });
+            }
+
+            exportCalls += 1;
+
+            return exportCalls === 1
+                ? jsonResponse(401, { message: 'Unauthenticated.' })
+                : docxResponse();
+        });
+
+        const result = await apiDownload('/seizures/export.docx');
+
+        expect(result.status).toBe(200);
+        expect(new Uint8Array(await result.arrayBuffer())).toEqual(
+            new Uint8Array([0x50, 0x4b]),
+        );
+
+        expect(
+            fetchMock.mock.calls.filter(([url]) => url === REFRESH_URL).length,
+        ).toBe(1);
+
+        // Повтор ушёл уже с обновлённым access-токеном.
+        const authorizations = fetchMock.mock.calls
+            .filter(([url]) => url === EXPORT_URL)
+            .map(([, init]) => init.headers.Authorization);
+
+        expect(authorizations).toEqual(['Bearer access-1', 'Bearer access-2']);
+    });
+
+    it('422 с errors → validation: toApiError применим к бинарному шву', async () => {
+        fetchMock.mockResolvedValue(
+            jsonResponse(422, {
+                message: 'The from field must be a valid date.',
+                errors: { from: ['The from field must be a valid date.'] },
+            }),
+        );
+
+        const error = await expectApiError(
+            apiDownload('/seizures/export.docx?from=oops'),
+            'validation',
+        );
+
+        expect(error.fieldErrors).toEqual({
+            from: ['The from field must be a valid date.'],
+        });
+    });
+
+    it('TypeError от fetch → network', async () => {
+        fetchMock.mockRejectedValue(new TypeError('boom'));
+
+        await expectApiError(apiDownload('/seizures/export.docx'), 'network');
+    });
+
+    it('auth: false — без Authorization и без refresh на 401', async () => {
+        getItemAsync.mockResolvedValue(JSON.stringify(storedAuth()));
+        fetchMock.mockResolvedValue(
+            jsonResponse(401, { message: 'Unauthenticated.' }),
+        );
+
+        await expectApiError(
+            apiDownload('/seizures/export.docx', { auth: false }),
+            'unauthorized',
+        );
+
+        const [, init] = fetchMock.mock.calls[0];
+
+        expect(init.headers).not.toHaveProperty('Authorization');
+        // 401 не триггерит refresh-очередь — ровно один запрос.
+        expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 });

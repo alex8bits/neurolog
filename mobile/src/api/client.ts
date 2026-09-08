@@ -54,7 +54,40 @@ export async function apiFetch<T>(
     path: string,
     init?: ApiFetchInit,
 ): Promise<T> {
-    const useAuth = init?.auth !== false;
+    const response = await fetchWithAuth(path, init, init?.auth !== false);
+
+    if (response.ok) {
+        return (await parseJson(response)) as T;
+    }
+
+    throw await toApiError(response);
+}
+
+/** Скачивание бинарного ответа: та же Bearer/refresh-логика, что у
+ *  apiFetch, но тело НЕ парсится как JSON — вызывающая сторона читает
+ *  arrayBuffer()/headers сама. Non-ok проходит через toApiError как обычно. */
+export async function apiDownload(
+    path: string,
+    init?: ApiFetchInit,
+): Promise<Response> {
+    const response = await fetchWithAuth(path, init, init?.auth !== false);
+
+    // Без parseJson: у ok-ответа тело бинарное (DOCX). JSON бывает только
+    // у non-ok ответов — их разбирает toApiError внутри.
+    if (response.ok) {
+        return response;
+    }
+
+    throw await toApiError(response);
+}
+
+/** Общий контур авторизованного запроса: первый запрос → при 401
+ *  single-flight refresh (с проверкой «поколения» сессии) → один повтор. */
+async function fetchWithAuth(
+    path: string,
+    init: ApiFetchInit | undefined,
+    useAuth: boolean,
+): Promise<Response> {
     const generationAtStart = generation;
 
     let response = await request(path, init, useAuth);
@@ -72,11 +105,7 @@ export async function apiFetch<T>(
         response = await request(path, init, useAuth);
     }
 
-    if (response.ok) {
-        return (await parseJson(response)) as T;
-    }
-
-    throw await toApiError(response);
+    return response;
 }
 
 function runRefresh(): Promise<void> {

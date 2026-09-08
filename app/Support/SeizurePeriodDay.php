@@ -7,14 +7,16 @@ use App\Models\Seizure;
 
 /**
  * One day in a {@see SeizurePeriodReport}: the rendered header plus the
- * formatted rows, already in the owner's timezone.
+ * formatted rows, already in the report's resolved timezone (the owner's
+ * profile timezone unless the report was built with an explicit one, e.g.
+ * the device timezone of the mobile client).
  *
  * The `date` header and the per-row `date` / `time` strings use the same
  * `d.m.Y` / `H:i` formats the web journal relies on via
  * {@see SeizureRowResource}. The resource is the single source of truth
  * for these formats (see its class docblock), so this DTO re-renders them
- * with the owner's timezone explicitly instead of reading it from the
- * request, which would not be available at report-building time.
+ * with that timezone explicitly instead of reading it from the request,
+ * which would not be available at report-building time.
  */
 final readonly class SeizurePeriodDay
 {
@@ -22,7 +24,7 @@ final readonly class SeizurePeriodDay
      * @param  array<int, array<string, mixed>>  $entries
      */
     public function __construct(
-        public string $date,         // 'дд.мм.гггг' in the owner's timezone
+        public string $date,         // 'дд.мм.гггг' in the resolved timezone
         public array $entries,       // same shape as SeizureRowResource::toArray()
     ) {}
 

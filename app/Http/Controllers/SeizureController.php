@@ -39,8 +39,6 @@ class SeizureController extends Controller
      */
     private const PER_PAGE = 50;
 
-    private const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-
     public function __construct(
         private readonly SeizureQuery $query,
         private readonly SeizureWriter $writer,
@@ -149,7 +147,7 @@ class SeizureController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Файл сохранён.']);
 
         return response()->download($tmp, $filename, [
-            'Content-Type' => self::DOCX_MIME,
+            'Content-Type' => SeizureDocxBuilder::DOCX_MIME,
         ]);
     }
 

@@ -16,6 +16,10 @@ use PhpOffice\PhpWord\PhpWord;
  */
 class SeizureDocxBuilder
 {
+    /** MIME-тип генерируемого документа (Word 2007 OOXML) — единая точка
+     *  для контроллеров скачивания, Mailable и тестов. */
+    public const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
     private const FONT = 'Courier New';
 
     private const SIZE_BODY = 11;

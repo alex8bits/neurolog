@@ -69,14 +69,4 @@ class EmailDoctorRequest extends FormRequest
             'to' => $this->normalizeBound($validated, 'to'),
         ];
     }
-
-    /**
-     * @param  array<string, mixed>  $validated
-     */
-    private function normalizeBound(array $validated, string $key): ?string
-    {
-        $value = $validated[$key] ?? null;
-
-        return is_string($value) && trim($value) !== '' ? trim($value) : null;
-    }
 }

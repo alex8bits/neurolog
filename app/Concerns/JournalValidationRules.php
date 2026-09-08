@@ -23,4 +23,16 @@ trait JournalValidationRules
             'to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from'],
         ];
     }
+
+    /**
+     * Normalize a validated period parameter: absent or blank → null.
+     *
+     * @param  array<string, mixed>  $validated
+     */
+    protected function normalizeBound(array $validated, string $key): ?string
+    {
+        $value = $validated[$key] ?? null;
+
+        return is_string($value) && trim($value) !== '' ? trim($value) : null;
+    }
 }

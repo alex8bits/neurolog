@@ -6,6 +6,7 @@ use App\Http\Requests\Seizures\IndexJournalRequest;
 use App\Mail\JournalReport;
 use App\Models\Seizure;
 use App\Models\User;
+use App\Services\SeizureDocxBuilder;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Mail\Markdown;
@@ -37,10 +38,7 @@ class ExportTest extends TestCase
             ->get(route('seizures.export', ['from' => '2026-05-10', 'to' => '2026-05-10']));
 
         $response->assertOk();
-        $response->assertHeader(
-            'Content-Type',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        );
+        $response->assertHeader('Content-Type', SeizureDocxBuilder::DOCX_MIME);
         // Symfony encodes the cyrillic filename as RFC 5987 `filename*=` —
         // either the raw UTF-8 string (when the client is a browser that
         // prefers it) or its percent-encoded form. The percent-encoded form

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\JournalExportController;
 use App\Http\Controllers\Api\V1\SeizureController;
 use Illuminate\Support\Facades\Route;
 
@@ -44,4 +45,17 @@ Route::middleware('auth:sanctum')->name('api.v1.')->group(function () {
     Route::delete('seizures/{seizure}', [SeizureController::class, 'destroy'])
         ->whereNumber('seizure')
         ->name('seizures.destroy');
+
+    // Экспорт и письма журнала: тот же DOCX/Mailable, что в вебе. Оба письма
+    // делят один бюджет throttle:5,1 с веб-действиями (ключ — id пользователя).
+    Route::get('seizures/export.docx', [JournalExportController::class, 'download'])
+        ->name('seizures.export');
+
+    Route::post('seizures/email-self', [JournalExportController::class, 'emailSelf'])
+        ->middleware('throttle:5,1')
+        ->name('seizures.email-self');
+
+    Route::post('seizures/email-doctor', [JournalExportController::class, 'emailDoctor'])
+        ->middleware('throttle:5,1')
+        ->name('seizures.email-doctor');
 });

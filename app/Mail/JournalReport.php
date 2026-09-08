@@ -123,7 +123,7 @@ class JournalReport extends Mailable
             Attachment::fromData(
                 fn (): string => $this->docxBytes,
                 $this->filename,
-            )->withMime('application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
+            )->withMime(SeizureDocxBuilder::DOCX_MIME),
         ];
     }
 }

@@ -1,8 +1,9 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFocusEffect, useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+    ActivityIndicator,
     Alert,
     FlatList,
     Pressable,
@@ -36,6 +37,12 @@ const GENERIC_ERROR_TEXT = 'Сервер недоступен, попробуй�
 /** MIME DOCX-отчёта — expo-sharing передаёт его системному шарингу. */
 const DOCX_MIME =
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+/** Сколько показывать итоговый значок «Отправить себе» (галочка/крест). */
+const SELF_STATUS_RESET_MS = 5000;
+
+/** Состояние кнопки «Отправить себе»; idle — значка нет. */
+type SelfStatus = 'idle' | 'sending' | 'ok' | 'fail';
 
 /** Чипы-пресеты фильтра периода; «Произвольный период» — отдельный чип. */
 const PERIOD_PRESETS: { filter: PeriodFilter; label: string }[] = [
@@ -86,9 +93,11 @@ function rowTimeLabel(occurredAt: string): string {
  *
  * Экспорт под фильтром: «Сохранить DOCX» — отчёт скачивается и уходит в
  * системный шаринг (сохранить/отправить), «Отправить себе» — письмо с
- * отчётом на email владельца, «Отправить доктору» — экран-форма письма;
- * период каждого действия — текущий фильтр. Печать отсутствует намеренно:
- * остаётся веб-only, вне скоупа мобильного.
+ * отчётом на email владельца (фидбек — значок на кнопке: спиннер →
+ * галочка/крест, гаснет через 5 с, всплывающих окон нет),
+ * «Отправить доктору» — экран-форма письма; период каждого действия —
+ * текущий фильтр. Печать отсутствует намеренно: остаётся веб-only,
+ * вне скоупа мобильного.
  *
  * Строки сгруппированы по календарным дням (groupSeizuresByDay): заголовок
  * дня с количеством приступов, внутри — только время и комментарий; фон
@@ -113,8 +122,13 @@ export default function JournalScreen() {
     // Блокирует повторный запуск экспорта DOCX (скачивание + шаринг).
     const [docxSaving, setDocxSaving] = useState(false);
 
-    // Блокирует повторную отправку письма себе.
-    const [emailingSelf, setEmailingSelf] = useState(false);
+    // Кнопка «Отправить себе»: отправка — спиннер на кнопке, результат —
+    // галочка/крест, гаснут сами через SELF_STATUS_RESET_MS.
+    const [selfStatus, setSelfStatus] = useState<SelfStatus>('idle');
+
+    // Таймер авто-скрытия значка результата; переживать экран и новую
+    // отправку он не должен.
+    const selfStatusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Строка, к которой открыт диалог действий (long-press): подсветка
     // фона живёт, пока диалог открыт — гасится каждой кнопкой диалога
@@ -349,24 +363,44 @@ export default function JournalScreen() {
     }
 
     /** «Отправить себе»: письмо с отчётом текущего периода на email
-     *  владельца; фидбек — Alert с message сервера. */
+     *  владельца; фидбек — значок на самой кнопке (спиннер → галочка/
+     *  крест, гаснет через SELF_STATUS_RESET_MS), без всплывающих окон. */
     async function sendSelf(): Promise<void> {
-        if (emailingSelf) {
+        if (selfStatus === 'sending') {
             return;
         }
 
-        setEmailingSelf(true);
+        clearSelfStatusTimer();
+        setSelfStatus('sending');
 
         try {
-            const response = await emailSeizuresSelf(periodParams());
-
-            Alert.alert('Отправить себе', response.message);
-        } catch (error) {
-            Alert.alert('Отправить себе', actionErrorText(error));
-        } finally {
-            setEmailingSelf(false);
+            await emailSeizuresSelf(periodParams());
+            showSelfStatus('ok');
+        } catch {
+            showSelfStatus('fail');
         }
     }
+
+    /** Показывает итоговый значок и планирует возврат в idle. */
+    function showSelfStatus(status: 'ok' | 'fail'): void {
+        setSelfStatus(status);
+
+        clearSelfStatusTimer();
+        selfStatusTimer.current = setTimeout(() => {
+            setSelfStatus('idle');
+            selfStatusTimer.current = null;
+        }, SELF_STATUS_RESET_MS);
+    }
+
+    function clearSelfStatusTimer(): void {
+        if (selfStatusTimer.current !== null) {
+            clearTimeout(selfStatusTimer.current);
+            selfStatusTimer.current = null;
+        }
+    }
+
+    // Таймер значка не должен пережить экран.
+    useEffect(() => clearSelfStatusTimer, []);
 
     /** «Отправить доктору»: переход на экран-форму письма с периодом
      *  текущего фильтра; роут-параметры — строки: timezone всегда,
@@ -550,14 +584,33 @@ export default function JournalScreen() {
                 </Pressable>
                 <Pressable
                     accessibilityRole="button"
-                    accessibilityState={{ disabled: emailingSelf }}
-                    disabled={emailingSelf}
-                    style={[styles.chip, emailingSelf && styles.actionDisabled]}
+                    accessibilityState={{
+                        disabled: selfStatus === 'sending',
+                    }}
+                    disabled={selfStatus === 'sending'}
+                    style={[
+                        styles.chip,
+                        selfStatus === 'sending' && styles.actionDisabled,
+                    ]}
                     onPress={() => {
                         void sendSelf();
                     }}
                 >
-                    <Text style={styles.chipLabel}>Отправить себе</Text>
+                    <View style={styles.actionInner}>
+                        <Text style={styles.chipLabel}>Отправить себе</Text>
+                        {selfStatus === 'sending' ? (
+                            <ActivityIndicator
+                                size="small"
+                                color="#2f6fde"
+                            />
+                        ) : null}
+                        {selfStatus === 'ok' ? (
+                            <Text style={styles.statusOk}>✓</Text>
+                        ) : null}
+                        {selfStatus === 'fail' ? (
+                            <Text style={styles.statusFail}>✕</Text>
+                        ) : null}
+                    </View>
                 </Pressable>
                 <Pressable
                     accessibilityRole="button"
@@ -777,8 +830,23 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '600',
     },
+    actionInner: {
+        alignItems: 'center',
+        flexDirection: 'row',
+        gap: 6,
+    },
     actionDisabled: {
         opacity: 0.6,
+    },
+    statusOk: {
+        color: '#2E7D32',
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    statusFail: {
+        color: '#d32f2f',
+        fontSize: 14,
+        fontWeight: '600',
     },
     inlineError: {
         color: '#d32f2f',

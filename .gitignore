@@ -2,6 +2,7 @@
 /bootstrap/ssr
 /node_modules
 /public/build
+/public/downloads
 /public/fonts-manifest.dev.json
 /public/hot
 /public/storage
@@ -28,6 +29,7 @@ yarn-error.log
 /.vscode
 /.zed
 /.mavis
+/.zcode
 
 # EFK stack (profile=logs) runtime data — never commit.
 # Configs under dockerfiles/{elasticsearch,kibana,fluent-bit} ARE committed.

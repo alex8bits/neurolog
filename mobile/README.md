@@ -57,6 +57,23 @@ eas build --profile production --platform android    # AAB для Play Console
 
 > ⚠️ Release-сборки (`assembleRelease`, профили `preview`/`production`) по **HTTP**-адресу API не достучатся: cleartext разрешён только в debug-вариантах (Expo Go и debug-prebuild). Прод — только HTTPS; адрес для отладки на устройстве ставьте через `mobile/.env` (см. [«Локальные URL»](#локальные-url)).
 
+### Публикация APK на сайт (раздача через сайт)
+
+Скрипт [`scripts/publish-apk.sh`](./scripts/publish-apk.sh) кладёт собранный APK в `public/downloads/seizure.apk` и пишет рядом `app-release.json` с версией. После этого:
+
+- ссылка `http://<IP-или-домен>:<порт>/downloads/seizure.apk` — **постоянная**: nginx отдаёт файл напрямую, имя не меняется между релизами, замена атомарная (параллельная загрузка не получит недописанный файл);
+- в левом сайдбаре сайта появляется пункт «Скачать приложение» с номером версии — он читает `app-release.json`, поэтому до первой публикации пункта нет, а «мёртвых» ссылок не бывает.
+
+```bash
+# из mobile/ (Git Bash)
+./scripts/publish-apk.sh                                  # release-APK (только для HTTPS-API!)
+./scripts/publish-apk.sh android/app/build/outputs/apk/debug/app-debug.apk   # debug-APK для LAN/HTTP
+```
+
+Пока API доступен только по HTTP из локальной сети, публикуйте **debug**-вариант (release не работает с cleartext — см. предупреждение выше). Перед публикацией полезно поднять `expo.android.versionCode` в `app.json` и перегенерировать `android/` (`npx expo prebuild --platform android`): Android не ставит APK с versionCode ниже уже установленного, а совпадающий — нельзя отличить на телефоне (скрипт предупредит).
+
+`public/downloads/` в `.gitignore`: APK и мета — артефакты сборки, не исходники.
+
 ### Локальная проверка двух иконок (Этап 3)
 
 ```powershell
@@ -188,6 +205,8 @@ mobile/
 ├── .prettierrc       # 4 ключа
 ├── vitest.config.ts  # unit-тесты из __tests__/
 ├── .env.example      # образец EXPO_PUBLIC_API_BASE_URL
+├── scripts/
+│   └── publish-apk.sh  # публикация APK в public/downloads (раздача с сайта)
 ├── app/              # expo-router (file-based)
 │   ├── _layout.tsx   # root Stack + AuthProvider + роутинг-гард (returnTo)
 │   ├── (auth)/       # login.tsx / register.tsx (форвард returnTo)

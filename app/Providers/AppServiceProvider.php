@@ -37,13 +37,11 @@ class AppServiceProvider extends ServiceProvider
             app()->isProduction(),
         );
 
+        // Личный дневник, не банк: осознанно мягкое требование — длина.
+        // Сложность (регистр/цифры/символы, проверка в утечках) убрана;
+        // вернуть можно здесь, все пути валидации идут через этот дефолт.
         Password::defaults(fn (): ?Password => app()->isProduction()
-            ? Password::min(12)
-                ->mixedCase()
-                ->letters()
-                ->numbers()
-                ->symbols()
-                ->uncompromised()
+            ? Password::min(6)
             : null,
         );
     }

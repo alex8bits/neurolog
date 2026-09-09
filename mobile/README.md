@@ -27,6 +27,7 @@ API-база НЕ хардкодится — берётся из `EXPO_PUBLIC_AP
 | -------------------------------------------- | ------------------------------------ |
 | Android-эмулятор (OpenServer на host-машине) | `http://10.0.2.2:8000/api/v1`        |
 | Физический Android в той же Wi-Fi сети       | `http://<IP-OpenServer>:8000/api/v1` |
+| Продуктив (`seizure.godnocode.ru`)           | `https://seizure.godnocode.ru/api/v1`|
 
 `<IP-OpenServer>` — IP машины, на которой запущен Laravel (`php artisan serve` или OpenServer). Узнать через `ipconfig` (Windows) или `ifconfig` (Linux/macOS) — обычно `192.168.x.x`.
 
@@ -56,6 +57,13 @@ eas build --profile production --platform android    # AAB для Play Console
 > ⚠️ Профиль `development` объявляет `developmentClient: true` и предполагает установленный `expo-dev-client` — этого пакета сейчас нет в зависимостях, команда в таком виде не сработает. Для смока на устройстве (Этап 5) используется локальная debug-сборка — см. [«Смок на физическом устройстве (Этап 5)»](#смок-на-физическом-устройстве-этап-5).
 
 > ⚠️ Release-сборки (`assembleRelease`, профили `preview`/`production`) по **HTTP**-адресу API не достучатся: cleartext разрешён только в debug-вариантах (Expo Go и debug-prebuild). Прод — только HTTPS; адрес для отладки на устройстве ставьте через `mobile/.env` (см. [«Локальные URL»](#локальные-url)).
+
+**Прод-сборки смотрят на сервер** `https://seizure.godnocode.ru`: профили `preview` и `production` в [`eas.json`](./eas.json) несут `EXPO_PUBLIC_API_BASE_URL` в своём `env` — облако EAS подставит его при сборке автоматически. Для **локальной** release-сборки под прод задайте переменную в команде (Metro инлайнит её при сборке бандла — до запуска, не после):
+
+```bash
+EXPO_PUBLIC_API_BASE_URL=https://seizure.godnocode.ru/api/v1 npx expo prebuild --platform android
+cd android && ./gradlew assembleRelease
+```
 
 ### Публикация APK на сайт (раздача через сайт)
 

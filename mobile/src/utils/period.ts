@@ -9,7 +9,7 @@
 
 import { formatYmd } from '@/utils/time';
 
-/** Выбранный фильтр периода в списке журнала; дефолт — { kind: 'all' }. */
+/** Выбранный фильтр периода в списке журнала; дефолт — { kind: 'last7' }. */
 export type PeriodFilter =
     | { kind: 'all' }
     | { kind: 'today' }

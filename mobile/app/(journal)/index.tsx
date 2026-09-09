@@ -44,12 +44,14 @@ const SELF_STATUS_RESET_MS = 5000;
 /** Состояние кнопки «Отправить себе»; idle — значка нет. */
 type SelfStatus = 'idle' | 'sending' | 'ok' | 'fail';
 
-/** Чипы-пресеты фильтра периода; «Произвольный период» — отдельный чип. */
+/** Чипы-пресеты фильтра периода; «Произвольный период» — отдельный чип.
+ * «Всё время» — последним: весь журнал остаётся явным выбором, дефолт —
+ * «7 дней» (см. state period ниже). */
 const PERIOD_PRESETS: { filter: PeriodFilter; label: string }[] = [
-    { filter: { kind: 'all' }, label: 'Всё время' },
     { filter: { kind: 'today' }, label: 'Сегодня' },
     { filter: { kind: 'last7' }, label: '7 дней' },
     { filter: { kind: 'last30' }, label: '30 дней' },
+    { filter: { kind: 'all' }, label: 'Всё время' },
 ];
 
 /** Текст ошибки загрузки: сеть/сессия — из userMessage, прочее — общий. */
@@ -135,13 +137,14 @@ export default function JournalScreen() {
     // и закрытием мимо него (onDismiss Android: тап вне / системный back).
     const [activeRowId, setActiveRowId] = useState<number | null>(null);
 
-    // Фильтр периода списка; дефолт «Всё время».
-    const [period, setPeriod] = useState<PeriodFilter>({ kind: 'all' });
+    // Фильтр периода списка; дефолт «7 дней» — как в вебе, весь журнал
+    // только явным выбором чипа «Всё время».
+    const [period, setPeriod] = useState<PeriodFilter>({ kind: 'last7' });
 
     // Текущий фильтр для load: ref читается в момент вызова, поэтому load
     // имеет стабильную identity (deps []) — смена фильтра не перезапускает
     // useFocusEffect вторым идентичным запросом.
-    const periodRef = useRef<PeriodFilter>({ kind: 'all' });
+    const periodRef = useRef<PeriodFilter>({ kind: 'last7' });
 
     // Порядковый номер загрузки: состояние пишет только последний начатый
     // запрос — устаревший ответ при быстром переключении фильтров не

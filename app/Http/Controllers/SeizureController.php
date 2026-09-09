@@ -155,8 +155,6 @@ class SeizureController extends Controller
         IOFactory::createWriter($phpWord, 'Word2007')->save($tmp);
         register_shutdown_function(static fn () => @unlink($tmp));
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Файл сохранён.']);
-
         return response()->download($tmp, $filename, [
             'Content-Type' => SeizureDocxBuilder::DOCX_MIME,
         ]);

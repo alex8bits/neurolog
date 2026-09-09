@@ -59,8 +59,11 @@ function emailSelf(): void {
 
 <template>
     <div class="flex flex-wrap items-center gap-2">
+        <!-- Обычный <a>, не Inertia Link: бинарный ответ DOCX нельзя
+             получить через XHR-визит — только настоящей навигацией,
+             иначе файл не скачивается. -->
         <Button variant="outline" as-child>
-            <Link :href="downloadHref">Сохранить DOCX</Link>
+            <a :href="downloadHref">Сохранить DOCX</a>
         </Button>
 
         <Button variant="outline" as-child>

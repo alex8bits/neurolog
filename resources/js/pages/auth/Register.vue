@@ -61,6 +61,10 @@ defineOptions({
 
             <div class="grid gap-2">
                 <Label for="email">Email</Label>
+                <p class="text-sm text-muted-foreground">
+                    Желательно указывать действительный адрес, т.к. на него
+                    будут отправляться отчёты
+                </p>
                 <Input
                     id="email"
                     type="email"

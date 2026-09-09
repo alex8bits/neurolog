@@ -43,9 +43,6 @@ const pageLinks = computed(() =>
             <h1 class="text-xl font-semibold tracking-tight">
                 Журнал приступов
             </h1>
-            <p class="text-sm text-muted-foreground">
-                Записи отображаются в вашем часовом поясе.
-            </p>
         </header>
 
         <PeriodFilter :filters="filters" />

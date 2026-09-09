@@ -10,6 +10,7 @@ use App\Services\SeizureDocxBuilder;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Mail\Markdown;
+use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
@@ -24,6 +25,13 @@ use Tests\TestCase;
 class ExportTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function tearDown(): void
+    {
+        Date::setTestNow();
+
+        parent::tearDown();
+    }
 
     public function test_authenticated_user_can_download_docx_for_the_current_period(): void
     {
@@ -199,5 +207,93 @@ class ExportTest extends TestCase
         $this->get(route('journal.print'))->assertRedirect(route('login'));
         $this->post(route('seizures.email-self'))->assertRedirect(route('login'));
         $this->post(route('seizures.email-doctor'))->assertRedirect(route('login'));
+    }
+
+    public function test_print_email_and_docx_default_to_the_last_week(): void
+    {
+        // 12:00 UTC = 15:00 в Москве: окно по умолчанию — 06..12 мая.
+        // Запись 10 мая попадает в окно, 1 мая — нет.
+        Date::setTestNow(CarbonImmutable::parse('2026-05-12 12:00:00', 'UTC'));
+        Mail::fake();
+
+        $user = User::factory()->create(['timezone' => 'Europe/Moscow']);
+        Seizure::factory()
+            ->for($user)
+            ->occurredAt(CarbonImmutable::parse('2026-05-10 09:15:00', 'UTC'))
+            ->withComment('Запись недели')
+            ->create();
+        Seizure::factory()
+            ->for($user)
+            ->occurredAt(CarbonImmutable::parse('2026-05-01 09:15:00', 'UTC'))
+            ->withComment('Старая запись')
+            ->create();
+
+        // Печать без границ — только окно по умолчанию.
+        $this->actingAs($user)
+            ->get(route('journal.print'))
+            ->assertOk()
+            ->assertSee('Запись недели')
+            ->assertDontSee('Старая запись');
+
+        // Письмо себе без границ — тот же дефолтный период.
+        $this->actingAs($user)
+            ->from(route('dashboard'))
+            ->post(route('seizures.email-self'));
+
+        Mail::assertSent(JournalReport::class, function (JournalReport $mail) {
+            return $mail->hasTo($mail->owner->email)
+                && $mail->report->from === '2026-05-06'
+                && $mail->report->to === '2026-05-12'
+                && $mail->report->totalEntries === 1;
+        });
+
+        // DOCX без границ носит имя дефолтного окна, а не «полный».
+        $response = $this->actingAs($user)->get(route('seizures.export'));
+        $response->assertOk();
+        $disposition = (string) $response->headers->get('Content-Disposition');
+        preg_match("/filename\\*=utf-8''([^\\s'\"]+)/i", $disposition, $matches);
+        $this->assertSame(
+            'Журнал_приступов_06.05.2026_12.05.2026.docx',
+            rawurldecode($matches[1]),
+        );
+    }
+
+    public function test_print_and_email_doctor_all_flag_covers_the_whole_journal(): void
+    {
+        Date::setTestNow(CarbonImmutable::parse('2026-05-12 12:00:00', 'UTC'));
+        Mail::fake();
+
+        $user = User::factory()->create(['timezone' => 'Europe/Moscow']);
+        Seizure::factory()
+            ->for($user)
+            ->occurredAt(CarbonImmutable::parse('2026-05-10 09:15:00', 'UTC'))
+            ->withComment('Запись недели')
+            ->create();
+        Seizure::factory()
+            ->for($user)
+            ->occurredAt(CarbonImmutable::parse('2026-05-01 09:15:00', 'UTC'))
+            ->withComment('Старая запись')
+            ->create();
+
+        // Явное «всё» на печати показывает обе записи.
+        $this->actingAs($user)
+            ->get(route('journal.print', ['all' => '1']))
+            ->assertOk()
+            ->assertSee('Запись недели')
+            ->assertSee('Старая запись');
+
+        // И на письме доктору: all приходит query-параметром на URL действия.
+        $this->actingAs($user)
+            ->from(route('dashboard'))
+            ->post(route('seizures.email-doctor', ['all' => '1']), [
+                'to' => 'doctor@example.com',
+            ]);
+
+        Mail::assertSent(JournalReport::class, function (JournalReport $mail) {
+            return $mail->hasTo('doctor@example.com')
+                && $mail->report->from === null
+                && $mail->report->to === null
+                && $mail->report->totalEntries === 2;
+        });
     }
 }

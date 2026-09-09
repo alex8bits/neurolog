@@ -6,6 +6,7 @@ use App\Models\Seizure;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Date;
 use Inertia\Support\SessionKey;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
@@ -14,8 +15,17 @@ class JournalTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function tearDown(): void
+    {
+        Date::setTestNow();
+
+        parent::tearDown();
+    }
+
     public function test_dashboard_lists_only_own_seizures_formatted_in_the_owners_timezone(): void
     {
+        Date::setTestNow(CarbonImmutable::parse('2026-05-12 12:00:00', 'UTC'));
+
         $user = User::factory()->create(['timezone' => 'Europe/Moscow']);
         $own = Seizure::factory()
             ->for($user)
@@ -36,8 +46,8 @@ class JournalTest extends TestCase
         $response->assertOk();
         $response->assertInertia(fn (Assert $page) => $page
             ->component('Journal')
-            ->where('filters.from', null)
-            ->where('filters.to', null)
+            ->where('filters.from', '2026-05-06')
+            ->where('filters.to', '2026-05-12')
             ->has('seizures.data', 1)
             ->where('seizures.data.0.id', $own->id)
             ->where('seizures.data.0.date', '10.05.2026')
@@ -46,6 +56,61 @@ class JournalTest extends TestCase
             ->where('seizures.data.0.occurred_at_local', '2026-05-10T12:15')
             ->missing('seizures.data.0.user_id')
             ->missing('seizures.data.0.deleted_at'),
+        );
+    }
+
+    public function test_dashboard_defaults_to_the_last_seven_days_in_the_owners_timezone(): void
+    {
+        // 12:00 UTC = 15:00 в Москве: «сегодня» — 12 мая, окно по умолчанию
+        // 06..12 мая. Запись 10 мая попадает в окно, 1 мая — нет.
+        Date::setTestNow(CarbonImmutable::parse('2026-05-12 12:00:00', 'UTC'));
+
+        $user = User::factory()->create(['timezone' => 'Europe/Moscow']);
+        Seizure::factory()
+            ->for($user)
+            ->occurredAt(CarbonImmutable::parse('2026-05-10 09:15:00', 'UTC'))
+            ->create();
+        Seizure::factory()
+            ->for($user)
+            ->occurredAt(CarbonImmutable::parse('2026-05-01 09:15:00', 'UTC'))
+            ->create();
+
+        $response = $this
+            ->actingAs($user)
+            ->get(route('dashboard'));
+
+        $response->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->where('filters.from', '2026-05-06')
+            ->where('filters.to', '2026-05-12')
+            ->has('seizures.data', 1)
+            ->where('seizures.data.0.occurred_at_local', '2026-05-10T12:15'),
+        );
+    }
+
+    public function test_dashboard_all_flag_shows_the_whole_journal(): void
+    {
+        Date::setTestNow(CarbonImmutable::parse('2026-05-12 12:00:00', 'UTC'));
+
+        $user = User::factory()->create(['timezone' => 'Europe/Moscow']);
+        Seizure::factory()
+            ->for($user)
+            ->occurredAt(CarbonImmutable::parse('2026-05-10 09:15:00', 'UTC'))
+            ->create();
+        Seizure::factory()
+            ->for($user)
+            ->occurredAt(CarbonImmutable::parse('2026-05-01 09:15:00', 'UTC'))
+            ->create();
+
+        $response = $this
+            ->actingAs($user)
+            ->get(route('dashboard', ['all' => '1']));
+
+        $response->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->where('filters.from', null)
+            ->where('filters.to', null)
+            ->has('seizures.data', 2),
         );
     }
 
@@ -132,6 +197,9 @@ class JournalTest extends TestCase
 
     public function test_user_can_create_a_seizure_from_the_dashboard(): void
     {
+        // Запись от 10 мая должна попасть в дефолтное окно «последняя неделя».
+        Date::setTestNow(CarbonImmutable::parse('2026-05-12 12:00:00', 'UTC'));
+
         $user = User::factory()->create(['timezone' => 'Europe/Moscow']);
 
         $response = $this

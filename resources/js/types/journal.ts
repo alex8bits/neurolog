@@ -13,6 +13,9 @@ export type SeizureRow = {
 export type JournalFilters = {
     from: string | null;
     to: string | null;
+    // true, когда журнал открыт целиком (?all=1): действие экспорта/почты
+    // должно повторить это состояние, а не подставить дефолт «неделя».
+    all?: boolean;
 };
 
 // Laravel's `LengthAwarePaginator` JSON shape that Inertia passes to the page.

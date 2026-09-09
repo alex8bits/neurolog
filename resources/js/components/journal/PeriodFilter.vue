@@ -58,6 +58,12 @@ function apply(): void {
         <Button type="submit">Показать</Button>
 
         <Button variant="outline" as-child>
+            <Link :href="dashboard({ query: { all: '1' } }).url">
+                Всё время
+            </Link>
+        </Button>
+
+        <Button variant="outline" as-child>
             <Link :href="dashboard()">Сбросить фильтр</Link>
         </Button>
     </form>

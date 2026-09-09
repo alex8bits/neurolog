@@ -47,13 +47,18 @@ class SeizureController extends Controller
 
     /**
      * Show the journal page for the authenticated user, filtered by period.
+     *
+     * Without bounds the list defaults to the last 7 days in the owner's
+     * timezone (IndexJournalRequest::defaultedPeriod()); `?all=1` opts out.
      */
     public function index(IndexJournalRequest $request): Response
     {
+        $period = $request->defaultedPeriod();
+
         $paginator = $this->query->paginateForPeriod(
             $request->user(),
-            $request->fromInput(),
-            $request->toInput(),
+            $period['from'],
+            $period['to'],
             null,
             self::PER_PAGE,
         )->withQueryString();
@@ -61,8 +66,9 @@ class SeizureController extends Controller
         return Inertia::render('Journal', [
             'seizures' => SeizureRowResource::collection($paginator),
             'filters' => [
-                'from' => $request->fromInput(),
-                'to' => $request->toInput(),
+                'from' => $period['from'],
+                'to' => $period['to'],
+                'all' => $request->boolean('all'),
             ],
         ]);
     }
@@ -121,6 +127,10 @@ class SeizureController extends Controller
     /**
      * GET /seizures/export.docx?from&to — download the period as a DOCX file.
      *
+     * The period defaults exactly like the list view: without bounds the
+     * file covers the last 7 days (`?all=1` for the whole journal), so the
+     * export always matches what the user sees.
+     *
      * PhpWord's `Word2007::save()` only accepts a real filename (it rewrites
      * `php://…` URIs into a temp file under the hood), so we materialise the
      * document to a tempnam() and hand that path to `response()->download()`.
@@ -130,10 +140,11 @@ class SeizureController extends Controller
     public function download(IndexJournalRequest $request): BinaryFileResponse
     {
         $user = $request->user();
+        $period = $request->defaultedPeriod();
         $report = new SeizurePeriodReport(
             owner: $user,
-            from: $request->fromInput(),
-            to: $request->toInput(),
+            from: $period['from'],
+            to: $period['to'],
             query: $this->query,
         );
 
@@ -154,15 +165,19 @@ class SeizureController extends Controller
     /**
      * GET /journal/print?from&to — printable HTML version of the period.
      *
+     * The period defaults exactly like the list view: without bounds the
+     * page covers the last 7 days (`?all=1` for the whole journal).
+     *
      * This is the first non-Inertia view in the controller: the page is meant
      * to be opened in a new tab and printed, not navigated through the SPA.
      */
     public function print(IndexJournalRequest $request): View
     {
+        $period = $request->defaultedPeriod();
         $report = new SeizurePeriodReport(
             owner: $request->user(),
-            from: $request->fromInput(),
-            to: $request->toInput(),
+            from: $period['from'],
+            to: $period['to'],
             query: $this->query,
         );
 
@@ -171,14 +186,18 @@ class SeizureController extends Controller
 
     /**
      * POST /seizures/email-self — email the period DOCX to the owner.
+     *
+     * The period defaults exactly like the list view: without bounds the
+     * letter covers the last 7 days (`?all=1` for the whole journal).
      */
     public function emailSelf(IndexJournalRequest $request): RedirectResponse
     {
         $user = $request->user();
+        $period = $request->defaultedPeriod();
         $report = new SeizurePeriodReport(
             owner: $user,
-            from: $request->fromInput(),
-            to: $request->toInput(),
+            from: $period['from'],
+            to: $period['to'],
             query: $this->query,
         );
 
@@ -201,14 +220,15 @@ class SeizureController extends Controller
      * POST /seizures/email-doctor — email the period DOCX to an arbitrary
      * recipient with optional subject / body overrides.
      *
-     * `from` / `to` arrive as query parameters on the action URL and are
-     * validated by {@see EmailDoctorRequest::validatedPeriod()} — the query
-     * bag is validated separately from the body fields because the query
-     * `to` (a date bound) shares its key with the body `to` (the recipient
-     * address). The action URL is always constructed by the SPA from an
-     * already-validated pair, but an unvalidated bound would make
+     * `from` / `to` / `all` arrive as query parameters on the action URL and
+     * are validated by {@see EmailDoctorRequest::defaultedPeriod()} — the
+     * query bag is validated separately from the body fields because the
+     * query `to` (a date bound) shares its key with the body `to` (the
+     * recipient address). The action URL is always constructed by the SPA
+     * from an already-validated pair, but an unvalidated bound would make
      * `SeizureQuery::forPeriod()` throw instead of producing a validation
-     * error.
+     * error. The period defaults to the last 7 days exactly like the list
+     * view; `?all=1` on the action URL sends the whole journal.
      *
      * The body is stripped of tags before being passed to the Mailable: the
      * markdown template renders the value as plain text, and user-supplied
@@ -218,7 +238,7 @@ class SeizureController extends Controller
     {
         $user = $request->user();
 
-        $period = $request->validatedPeriod();
+        $period = $request->defaultedPeriod();
 
         $report = new SeizurePeriodReport(
             owner: $user,

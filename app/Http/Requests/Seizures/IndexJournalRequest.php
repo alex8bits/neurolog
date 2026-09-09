@@ -4,6 +4,7 @@ namespace App\Http\Requests\Seizures;
 
 use App\Concerns\JournalValidationRules;
 use App\Concerns\ReadsValidatedInput;
+use App\Support\DefaultJournalPeriod;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -13,6 +14,9 @@ use Illuminate\Foundation\Http\FormRequest;
  * `timezone` and `per_page` are intentionally not accepted: the timezone is
  * always resolved from the owner's profile, the page size is fixed by the
  * controller.
+ *
+ * The extra `all` flag is the explicit escape from the default period
+ * (see {@see DefaultJournalPeriod}): `?all=1` shows the whole journal.
  */
 class IndexJournalRequest extends FormRequest
 {
@@ -26,7 +30,10 @@ class IndexJournalRequest extends FormRequest
      */
     public function rules(): array
     {
-        return $this->periodRules();
+        return [
+            ...$this->periodRules(),
+            'all' => ['sometimes', 'boolean'],
+        ];
     }
 
     /**
@@ -43,5 +50,21 @@ class IndexJournalRequest extends FormRequest
     public function toInput(): ?string
     {
         return $this->filledString('to');
+    }
+
+    /**
+     * Period bounds with the journal's default applied — see
+     * {@see DefaultJournalPeriod::bounds()}.
+     *
+     * @return array{from: ?string, to: ?string}
+     */
+    public function defaultedPeriod(): array
+    {
+        return DefaultJournalPeriod::bounds(
+            $this->fromInput(),
+            $this->toInput(),
+            $this->boolean('all'),
+            $this->user(),
+        );
     }
 }

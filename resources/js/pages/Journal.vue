@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import CreateSeizureDialog from '@/components/journal/CreateSeizureDialog.vue';
 import JournalActions from '@/components/journal/JournalActions.vue';
 import PeriodFilter from '@/components/journal/PeriodFilter.vue';
-import SeizureTable from '@/components/journal/SeizureTable.vue';
+import SeizureDayList from '@/components/journal/SeizureDayList.vue';
 import { Button } from '@/components/ui/button';
 import { dashboard } from '@/routes';
 import type { JournalFilters, Paginated, SeizureRow } from '@/types/journal';
+import { todayYmd as todayYmdFn } from '@/utils/dayGroups';
 
 const props = defineProps<{
     seizures: Paginated<SeizureRow>;
@@ -24,6 +25,11 @@ defineOptions({
         ],
     },
 });
+
+// «Сегодня» в поясе профиля: заголовки дней сравнивают год с той же зоной,
+// которой фильтрует сервер, — а не с поясом браузера.
+const page = usePage();
+const todayYmd = computed(() => todayYmdFn(page.props.auth.user.timezone));
 
 // Laravel's default paginator mixes numeric page links with HTML-arrow
 // "Previous"/"Next" labels and "..." ellipsis slots. The per-page chips live
@@ -57,7 +63,11 @@ const pageLinks = computed(() =>
             </CreateSeizureDialog>
         </div>
 
-        <SeizureTable v-if="seizures.data.length > 0" :rows="seizures.data" />
+        <SeizureDayList
+            v-if="seizures.data.length > 0"
+            :rows="seizures.data"
+            :today-ymd="todayYmd"
+        />
 
         <div
             v-else

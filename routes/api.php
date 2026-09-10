@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\JournalExportController;
+use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\SeizureController;
 use Illuminate\Support\Facades\Route;
 
@@ -31,6 +32,15 @@ Route::name('api.v1.')->group(function () {
 // Всё остальное — только по access-токену (концепт 4.2, 5).
 Route::middleware('auth:sanctum')->name('api.v1.')->group(function () {
     Route::post('logout', [AuthController::class, 'logout'])->name('logout');
+
+    Route::get('profile', [ProfileController::class, 'show'])->name('profile.show');
+
+    Route::patch('profile', [ProfileController::class, 'update'])->name('profile.update');
+
+    // Подтверждение паролем — брутфорс-щита просит лимит, равный смене пароля в вебе.
+    Route::delete('profile', [ProfileController::class, 'destroy'])
+        ->middleware('throttle:6,1')
+        ->name('profile.destroy');
 
     Route::post('seizures', [SeizureController::class, 'store'])->name('seizures.store');
 

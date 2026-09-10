@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import * as authApi from '@/api/auth';
 import { onSessionExpired, resetSession } from '@/api/client';
 import type { LoginInput, RegisterInput } from '@/api/types';
-import { readTokens } from '@/auth/tokens';
+import { clearTokens, readTokens, updateStoredEmail } from '@/auth/tokens';
 
 export type AuthStatus = 'unknown' | 'anonymous' | 'authed';
 
@@ -18,6 +18,8 @@ interface AuthContextValue {
     login: (input: LoginInput) => Promise<void>;
     register: (input: RegisterInput) => Promise<void>;
     logout: () => Promise<void>;
+    updateEmail: (email: string) => Promise<void>;
+    signOutLocally: () => Promise<void>;
 }
 
 interface AuthState {
@@ -90,7 +92,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setState({ status: 'anonymous', user: null });
     }
 
-    const value: AuthContextValue = { ...state, login, register, logout };
+    /** После успешной смены email (PATCH /profile): новый email пишется и
+     *  в SecureStore, и в состояние — «Вы вошли как» не устаревает. */
+    async function updateEmail(email: string): Promise<void> {
+        await updateStoredEmail(email);
+
+        setState((prev) =>
+            prev.user === null ? prev : { ...prev, user: { email } },
+        );
+    }
+
+    /** Локальный выход без серверного вызова — используется после
+     *  DELETE /profile: сервер уже отозвал токены, повторный /logout не
+     *  нужен (гнал бы бессмысленные запросы отозванными токенами). */
+    async function signOutLocally(): Promise<void> {
+        // resetSession() ДО очистки: инвалидируем «поколение» очереди, как
+        // в logout(), — идущий refresh не дописал бы токены после очистки.
+        resetSession();
+
+        await clearTokens();
+
+        setState({ status: 'anonymous', user: null });
+    }
+
+    const value: AuthContextValue = {
+        ...state,
+        login,
+        register,
+        logout,
+        updateEmail,
+        signOutLocally,
+    };
 
     return (
         <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

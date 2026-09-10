@@ -237,7 +237,8 @@ mobile/
 │   └── (journal)/    # _layout.tsx (Stack группы), index.tsx (список
 │                     # с фильтром периода, маршрут «/»), new.tsx
 │                     # (создание: «сейчас» или точное время),
-│                     # settings.tsx (email/выход)
+│                     # settings.tsx (профиль: имя/email/пояс,
+│                     # удаление аккаунта, выход)
 ├── plugins/
 │   └── activity-alias/  # config plugin второй иконки: plugin.ts +
 │                        # android/AndroidManifest.xml.fragment

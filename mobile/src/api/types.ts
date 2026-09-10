@@ -84,3 +84,30 @@ export interface EmailDoctorInput {
 export interface EmailMessageResponse {
     message: string;
 }
+
+/** Профиль пользователя (UserResource, API V1). */
+export interface UserProfile {
+    id: number;
+    name: string;
+    email: string;
+    timezone: string; // IANA
+}
+
+/** Группа поясов селектора (App\Support\Timezones::grouped()). */
+export interface TimezoneGroup {
+    region: string;
+    zones: string[];
+}
+
+/** Тело GET /profile: профиль + список поясов для селектора. */
+export interface ProfileResponse {
+    data: UserProfile;
+    timezones: TimezoneGroup[];
+}
+
+/** Тело PATCH /profile. */
+export interface UpdateProfileInput {
+    name: string;
+    email: string;
+    timezone: string;
+}

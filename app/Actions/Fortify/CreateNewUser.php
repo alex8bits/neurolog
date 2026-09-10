@@ -5,6 +5,7 @@ namespace App\Actions\Fortify;
 use App\Concerns\PasswordValidationRules;
 use App\Concerns\ProfileValidationRules;
 use App\Models\User;
+use App\Support\Timezones;
 use Illuminate\Support\Facades\Validator;
 use Laravel\Fortify\Contracts\CreatesNewUsers;
 
@@ -28,15 +29,7 @@ class CreateNewUser implements CreatesNewUsers
             'name' => $input['name'],
             'email' => $input['email'],
             'password' => $input['password'],
-            'timezone' => $this->resolveSubmittedTimezone($input['timezone'] ?? null),
+            'timezone' => Timezones::resolve($input['timezone'] ?? null),
         ]);
-    }
-
-    /**
-     * Fall back to UTC when the client sent no usable timezone.
-     */
-    private function resolveSubmittedTimezone(mixed $timezone): string
-    {
-        return is_string($timezone) && trim($timezone) !== '' ? trim($timezone) : 'UTC';
     }
 }

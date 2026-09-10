@@ -48,3 +48,28 @@ export async function clearTokens(): Promise<void> {
         // Отсутствие ключа и прочие ошибки удаления не должны ломать logout.
     }
 }
+
+/** Вызывается после успешной смены email на сервере (PATCH /profile):
+ *  токены сохраняются, email заменяется, запись атомарна как у saveTokens.
+ *  Осознанная гонка last-write-wins с идущим refresh — класс гонки, уже
+ *  принятый в проекте; обе стороны оговорены:
+ *  (а) завершившийся после смены refresh может записать старый email —
+ *      он пишет email, прочитанный до запроса (client.ts performRefresh),
+ *      и хранилище отстанет до следующего входа;
+ *  (б) сам updateStoredEmail в окне read-modify-write может перезаписать
+ *      свежеротированную refresh'ем пару токенов прежде прочитанной: старый
+ *      refresh уже отозван, сессия закончится session-expired и
+ *      перелогином — самолечимо. */
+export async function updateStoredEmail(email: string): Promise<void> {
+    const stored = await readTokens();
+
+    if (stored === null) {
+        // Сессии нет — обновлять нечего.
+        return;
+    }
+
+    await SecureStore.setItemAsync(
+        AUTH_KEY,
+        JSON.stringify({ ...stored, email }),
+    );
+}

@@ -33,7 +33,9 @@ services:
     db:
         image: mariadb
         ports:
-            - "3316:3306"
+            # 3326: 3306 занят MySQL из OSPanel, 3316 — конвенциональный
+            # обходной порт других проектов; этот стек живёт на своём.
+            - "3326:3306"
         restart: unless-stopped
         env_file:
             - .env

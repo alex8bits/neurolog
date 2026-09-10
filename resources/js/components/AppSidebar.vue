@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { LayoutGrid, Smartphone } from '@lucide/vue';
+import { LayoutGrid, Heart, Smartphone } from '@lucide/vue';
 import { onMounted, ref } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import NavMain from '@/components/NavMain.vue';
@@ -33,6 +33,10 @@ const mainNavItems: NavItem[] = [
 // пишется рядом. Нет меты — APK не публиковали, пункта меню не показываем.
 const APP_DOWNLOAD_URL = '/downloads/seizure.apk';
 const appVersion = ref<string | null>(null);
+
+// Сбор Т-Банка для добровольных пожертвований; внешняя страница,
+// открывается в новой вкладке.
+const DONATE_URL = 'https://www.tbank.ru/cf/41k9RdG5ibo';
 
 onMounted(() => {
     fetch('/downloads/app-release.json', {
@@ -88,6 +92,26 @@ onMounted(() => {
                             </a>
                         </SidebarMenuButton>
                         <SidebarMenuBadge>v{{ appVersion }}</SidebarMenuBadge>
+                    </SidebarMenuItem>
+                </SidebarMenu>
+            </SidebarGroup>
+
+            <SidebarGroup class="px-2 py-0">
+                <SidebarGroupLabel>Проект</SidebarGroupLabel>
+                <SidebarMenu>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton as-child tooltip="Поддержать проект">
+                            <!-- Обычный <a>, не Link: внешняя страница сбора
+                                 открывается в новой вкладке. -->
+                            <a
+                                :href="DONATE_URL"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                <Heart />
+                                <span>Поддержать проект</span>
+                            </a>
+                        </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>
             </SidebarGroup>

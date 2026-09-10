@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
     Alert,
+    Linking,
     Modal,
     Pressable,
     ScrollView,
@@ -23,6 +24,10 @@ const NAME_MAX_LENGTH = 255;
 const EMAIL_MAX_LENGTH = 255;
 
 const GENERIC_ERROR_TEXT = 'Сервер недоступен, попробуйте позже.';
+
+/** Сбор Т-Банка для добровольных пожертвований — внешняя страница,
+ *  открывается в браузере устройства. */
+const DONATE_URL = 'https://www.tbank.ru/cf/41k9RdG5ibo';
 
 /** Текст ошибки загрузки: ApiError — по kind (userMessage), неожиданное —
  *  общий текст. */
@@ -326,6 +331,16 @@ export default function SettingsScreen() {
         }
     }
 
+    /** «Поддержать проект»: открывает страницу сбора в браузере;
+     *  при недоступности (нет браузера/ссылки) — короткий Alert. */
+    async function onDonate(): Promise<void> {
+        try {
+            await Linking.openURL(DONATE_URL);
+        } catch {
+            Alert.alert('', 'Не удалось открыть страницу сбора.');
+        }
+    }
+
     /** Выход (логика прежнего экрана настроек): гвард сам уведёт на
      *  /(auth)/login после смены статуса. */
     async function onLogout(): Promise<void> {
@@ -547,6 +562,16 @@ export default function SettingsScreen() {
                             </Pressable>
                         )}
                     </View>
+
+                    <Pressable
+                        accessibilityRole="button"
+                        style={styles.donate}
+                        onPress={onDonate}
+                    >
+                        <Text style={styles.donateLabel}>
+                            Поддержать проект
+                        </Text>
+                    </Pressable>
 
                     <Pressable
                         accessibilityRole="button"
@@ -773,6 +798,19 @@ const styles = StyleSheet.create({
     },
     dangerSubmitLabel: {
         color: '#fff',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    donate: {
+        alignItems: 'center',
+        borderColor: '#ccc',
+        borderRadius: 8,
+        borderWidth: 1,
+        marginBottom: 12,
+        paddingVertical: 12,
+    },
+    donateLabel: {
+        color: '#2f6fde',
         fontSize: 16,
         fontWeight: '600',
     },

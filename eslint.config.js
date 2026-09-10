@@ -80,6 +80,9 @@ export default defineConfigWithVueTs(
             'bootstrap/ssr',
             'tailwind.config.js',
             'vite.config.ts',
+            // У mobile/ свой eslint (expo-конфиг) и свои скрипты — корневой
+            // конфиг веб-приложения RN-файлы не линтит.
+            'mobile',
             'resources/js/actions/**',
             'resources/js/components/ui/*',
             'resources/js/routes/**',

@@ -238,7 +238,7 @@ mobile/
 │                     # с фильтром периода, маршрут «/»), new.tsx
 │                     # (создание: «сейчас» или точное время),
 │                     # settings.tsx (профиль: имя/email/пояс,
-│                     # удаление аккаунта, выход)
+│                     # удаление аккаунта, поддержка проекта, выход)
 ├── plugins/
 │   └── activity-alias/  # config plugin второй иконки: plugin.ts +
 │                        # android/AndroidManifest.xml.fragment

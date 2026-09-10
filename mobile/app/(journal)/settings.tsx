@@ -97,7 +97,9 @@ export default function SettingsScreen() {
     const [timezone, setTimezone] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
-    const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>(
+        {},
+    );
 
     // --- Пикер пояса ---
     const [pickerVisible, setPickerVisible] = useState(false);
@@ -438,8 +440,7 @@ export default function SettingsScreen() {
                                 accessibilityLabel={`Часовой пояс: ${timezone}`}
                                 style={[
                                     styles.zoneButton,
-                                    fieldErrors.timezone &&
-                                        styles.inputInvalid,
+                                    fieldErrors.timezone && styles.inputInvalid,
                                 ]}
                                 onPress={() => {
                                     setPickerVisible(true);
@@ -450,8 +451,8 @@ export default function SettingsScreen() {
                                 </Text>
                             </Pressable>
                             <Text style={styles.fieldHint}>
-                                Время приступов отображается и экспортируется
-                                в этом поясе.
+                                Время приступов отображается и экспортируется в
+                                этом поясе.
                             </Text>
                             {fieldErrors.timezone ? (
                                 <Text style={styles.fieldError}>
@@ -576,7 +577,10 @@ export default function SettingsScreen() {
                     <Pressable
                         accessibilityRole="button"
                         accessibilityState={{ disabled: loggingOut }}
-                        style={[styles.logout, loggingOut && styles.actionDisabled]}
+                        style={[
+                            styles.logout,
+                            loggingOut && styles.actionDisabled,
+                        ]}
                         disabled={loggingOut}
                         onPress={onLogout}
                     >
@@ -592,9 +596,7 @@ export default function SettingsScreen() {
                 animationType="slide"
                 onRequestClose={closePicker}
             >
-                <View
-                    style={[styles.pickerScreen, { paddingTop: insets.top }]}
-                >
+                <View style={[styles.pickerScreen, { paddingTop: insets.top }]}>
                     <View style={styles.pickerHeader}>
                         <Text style={styles.pickerTitle}>Часовой пояс</Text>
                         <Pressable

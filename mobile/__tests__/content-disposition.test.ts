@@ -59,8 +59,7 @@ describe('filenameFromContentDisposition', () => {
 
     it('битый filename* не проваливается на обычный filename', () => {
         const header =
-            'attachment; filename="report.docx"; ' +
-            "filename*=utf-8''%E0%";
+            'attachment; filename="report.docx"; ' + "filename*=utf-8''%E0%";
 
         expect(filenameFromContentDisposition(header)).toBe(
             DEFAULT_DOCX_FILENAME,
@@ -73,7 +72,7 @@ describe('filenameFromContentDisposition', () => {
         );
     });
 
-    it('языковой субтег RFC 5987 (utf-8\'en\') декодируется так же', () => {
+    it("языковой субтег RFC 5987 (utf-8'en') декодируется так же", () => {
         const header = `attachment; filename*=utf-8'en'${encodeURIComponent(
             'Журнал.docx',
         )}`;

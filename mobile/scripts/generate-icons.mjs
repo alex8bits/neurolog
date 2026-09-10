@@ -23,6 +23,7 @@ import { fileURLToPath } from 'node:url';
 let sharp;
 
 try {
+    // eslint-disable-next-line import/no-unresolved -- опциональный ручной инструмент генерации иконок, не в зависимостях
     sharp = (await import('sharp')).default;
 } catch {
     console.error('Нужен sharp (в deps не входит): npm i --no-save sharp');
@@ -86,10 +87,7 @@ const tile = (bg, body) =>
     svg(`<rect width="1024" height="1024" fill="${bg}"/>${body}`);
 
 async function renderPng(svgString, out, size = SIZE) {
-    await sharp(Buffer.from(svgString))
-        .resize(size, size)
-        .png()
-        .toFile(out);
+    await sharp(Buffer.from(svgString)).resize(size, size).png().toFile(out);
 }
 
 // Превью: каждый вариант на индиго (журнал) и красном («Приступ»)
@@ -147,7 +145,9 @@ async function preview(outDir) {
         .toFile(path.join(outDir, 'preview_grid.png'));
 
     console.log(`Превью: ${path.join(outDir, 'preview_grid.png')}`);
-    console.log('Строки — варианты; столбцы: журнал, «Приступ», legacy-квадрат, сплэш.');
+    console.log(
+        'Строки — варианты; столбцы: журнал, «Приступ», legacy-квадрат, сплэш.',
+    );
 }
 
 // Запись ассетов варианта в assets/images/ (те же имена, что в app.json).
@@ -175,13 +175,12 @@ async function finalAssets(variant, outDir) {
         .toFile(path.join(outDir, 'icon.png'));
 
     // 3. splash-icon.png — цветная версия на прозрачном (сплэш-фон белый).
-    await renderPng(
-        svg(v.splashBody()),
-        path.join(outDir, 'splash-icon.png'),
-    );
+    await renderPng(svg(v.splashBody()), path.join(outDir, 'splash-icon.png'));
 
     console.log(`Ассеты варианта ${variant} → ${outDir}`);
-    console.log('Не забудьте: npx expo prebuild --platform android, чтобы пересоздать ресурсы.');
+    console.log(
+        'Не забудьте: npx expo prebuild --platform android, чтобы пересоздать ресурсы.',
+    );
 }
 
 const [mode, variant] = process.argv.slice(2);

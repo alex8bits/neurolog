@@ -25,11 +25,13 @@ API-база НЕ хардкодится — берётся из `EXPO_PUBLIC_AP
 
 | Среда                                        | URL                                  |
 | -------------------------------------------- | ------------------------------------ |
-| Android-эмулятор (OpenServer на host-машине) | `http://10.0.2.2:8000/api/v1`        |
-| Физический Android в той же Wi-Fi сети       | `http://<IP-OpenServer>:8000/api/v1` |
+| Android-эмулятор (docker-стек на host-машине)| `http://10.0.2.2:8100/api/v1`        |
+| Физический Android в той же Wi-Fi сети       | `http://<IP-хоста>:8100/api/v1`      |
 | Продуктив (`seizure.godnocode.ru`)           | `https://seizure.godnocode.ru/api/v1`|
 
-`<IP-OpenServer>` — IP машины, на которой запущен Laravel (`php artisan serve` или OpenServer). Узнать через `ipconfig` (Windows) или `ifconfig` (Linux/macOS) — обычно `192.168.x.x`.
+`<IP-хоста>` — IP машины, на которой запущен стек (`docker compose up`); порт `8100` — published-порт nginx из `docker-compose.yml`. Узнать через `ipconfig` (Windows) — обычно `192.168.x.x`.
+
+**Релизные сборки**: URL вшивается при бандлинге из окружения — локальный `./gradlew assembleRelease` возьмёт `mobile/.env` (dev-адрес!), поэтому перед сборкой релиза либо создавай `mobile/.env.production` с прод-URL (Expo подхватывает его при NODE_ENV=production), либо передавай переменную явно: `EXPO_PUBLIC_API_BASE_URL=https://seizure.godnocode.ru/api/v1 ./gradlew assembleRelease`. Сборки через EAS берут URL из `eas.json`. Проверка после сборки: `unzip -p app-release.apk assets/index.android.bundle | grep -a godnocode`.
 
 > ⚠️ Смена `mobile/.env` требует рестарта `expo start` — Metro инлайнит значения `EXPO_PUBLIC_*` при сборке бандла, горячая перезагрузка новое значение не подхватит.
 

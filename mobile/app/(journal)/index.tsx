@@ -22,6 +22,7 @@ import {
 } from '@/api/seizures';
 import type { ExportPeriodParams, Seizure } from '@/api/types';
 import { deviceTimezone } from '@/config/timezone';
+import { maybePromptUpdate } from '@/updates/prompt';
 import {
     formatDayTitle,
     groupSeizuresByDay,
@@ -405,6 +406,13 @@ export default function JournalScreen() {
     // Таймер значка не должен пережить экран.
     useEffect(() => clearSelfStatusTimer, []);
 
+    // Проверка обновления — раз за жизнь процесса (флаг внутри модуля),
+    // только на входе журнала: /quick этот экран не монтирует. Ошибки
+    // проверки молчат — обновление не должно мешать журналу.
+    useEffect(() => {
+        void maybePromptUpdate();
+    }, []);
+
     /** «Отправить доктору»: переход на экран-форму письма с периодом
      *  текущего фильтра; роут-параметры — строки: timezone всегда,
      *  from/to — только непустые. */
@@ -602,10 +610,7 @@ export default function JournalScreen() {
                     <View style={styles.actionInner}>
                         <Text style={styles.chipLabel}>Отправить себе</Text>
                         {selfStatus === 'sending' ? (
-                            <ActivityIndicator
-                                size="small"
-                                color="#2f6fde"
-                            />
+                            <ActivityIndicator size="small" color="#2f6fde" />
                         ) : null}
                         {selfStatus === 'ok' ? (
                             <Text style={styles.statusOk}>✓</Text>

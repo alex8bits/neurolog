@@ -3,7 +3,7 @@
         "name": "График приступов",
         "slug": "seizure",
         "scheme": "seizure",
-        "version": "0.0.5",
+        "version": "0.0.6",
         "orientation": "portrait",
         "icon": "./assets/images/icon.png",
         "splash": {
@@ -13,7 +13,7 @@
         },
         "android": {
             "package": "com.alex8bits.seizure",
-            "versionCode": 5,
+            "versionCode": 6,
             "adaptiveIcon": {
                 "foregroundImage": "./assets/images/adaptive-icon.png",
                 "monochromeImage": "./assets/images/adaptive-icon.png",

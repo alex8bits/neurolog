@@ -31,7 +31,10 @@ class SendFeedback
 
         $anonymous = (bool) ($data['anonymous'] ?? false);
 
-        Mail::to($address)->send(new FeedbackMessage(
+        // Очередь (database-драйвер): HTTP-ответ не ждёт SMTP-доставку,
+        // письмо уходит воркером; сбой попадает в failed_jobs, а не в
+        // ответ пользователю.
+        Mail::to($address)->queue(new FeedbackMessage(
             messageText: (string) ($data['message'] ?? ''),
             name: $anonymous ? null : (string) ($data['name'] ?? ''),
             email: $anonymous ? null : (string) ($data['email'] ?? ''),

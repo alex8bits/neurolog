@@ -32,7 +32,7 @@ class FeedbackApiTest extends TestCase
 
         $response->assertOk()->assertJsonPath('message', 'Обращение отправлено.');
 
-        Mail::assertSent(FeedbackMessage::class, function (FeedbackMessage $mail) {
+        Mail::assertQueued(FeedbackMessage::class, function (FeedbackMessage $mail) {
             return $mail->source === 'мобильное приложение'
                 && $mail->name === 'Alex'
                 && $mail->email === 'alex@example.com';
@@ -51,7 +51,7 @@ class FeedbackApiTest extends TestCase
             ])
             ->assertOk();
 
-        Mail::assertSent(FeedbackMessage::class, function (FeedbackMessage $mail) {
+        Mail::assertQueued(FeedbackMessage::class, function (FeedbackMessage $mail) {
             return $mail->name === null && $mail->email === null;
         });
     }

@@ -30,6 +30,23 @@ services:
         networks:
             - seizure
 
+    # Воркер database-очереди (QUEUE_CONNECTION=database): локальный аналог
+    # supervisor-а прода. queue:restart не нужен — код монтируется, при
+    # деплое контейнер перезапускается руками (docker compose up -d queue).
+    queue:
+        build:
+            context: dockerfiles
+            dockerfile: php.Dockerfile
+        restart: unless-stopped
+        volumes:
+            - .:/var/www/laravel
+        networks:
+            - seizure
+        depends_on:
+            - db
+        command: ["php", "/var/www/laravel/artisan", "queue:work", "database", "--sleep=3", "--tries=3"]
+
+
     db:
         image: mariadb
         ports:

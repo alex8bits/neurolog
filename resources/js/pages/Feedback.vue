@@ -22,6 +22,15 @@ const email = ref(user.value.email);
 const anonymous = ref(false);
 const message = ref('');
 
+// Инлайн-уведомление об отправке: не зависит от flash-события тоста,
+// гаснет при вводе нового текста.
+const justSent = ref(false);
+
+function onSent(): void {
+    message.value = '';
+    justSent.value = true;
+}
+
 function onAnonymousChange(value: boolean | 'indeterminate'): void {
     anonymous.value = value === true;
 }
@@ -41,12 +50,20 @@ function onAnonymousChange(value: boolean | 'indeterminate'): void {
             description="Вопрос, предложение или проблема — письмо придёт разработчику проекта."
         />
 
+        <p
+            v-if="justSent"
+            role="status"
+            class="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700"
+        >
+            Обращение отправлено. Спасибо!
+        </p>
+
         <Form
             v-bind="FeedbackController.store.form()"
             :options="{ preserveScroll: true }"
             class="space-y-6"
             v-slot="{ errors, processing }"
-            @success="message = ''"
+            @success="onSent"
         >
             <div class="grid gap-2">
                 <Label for="name">Имя</Label>
@@ -97,6 +114,7 @@ function onAnonymousChange(value: boolean | 'indeterminate'): void {
                     id="message"
                     name="message"
                     v-model="message"
+                    @input="justSent = false"
                     rows="6"
                     maxlength="5000"
                     required

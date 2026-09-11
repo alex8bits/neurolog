@@ -43,7 +43,7 @@ class FeedbackTest extends TestCase
             ])
             ->assertRedirect();
 
-        Mail::assertSent(FeedbackMessage::class, function (FeedbackMessage $mail) {
+        Mail::assertQueued(FeedbackMessage::class, function (FeedbackMessage $mail) {
             $envelope = $mail->envelope();
 
             // Not anonymous: the owner may reply straight to the sender.
@@ -69,7 +69,7 @@ class FeedbackTest extends TestCase
             ])
             ->assertRedirect();
 
-        Mail::assertSent(FeedbackMessage::class, function (FeedbackMessage $mail) {
+        Mail::assertQueued(FeedbackMessage::class, function (FeedbackMessage $mail) {
             // Anonymous: whatever the client sent, the letter carries the
             // text only — no name, no email, no Reply-To.
             $this->assertNull($mail->name);

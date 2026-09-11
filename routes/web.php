@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\FeedbackController;
 use App\Http\Controllers\SeizureController;
 use Illuminate\Support\Facades\Route;
 
@@ -34,6 +35,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('seizures/email-doctor', [SeizureController::class, 'emailDoctor'])
         ->middleware('throttle:5,1')
         ->name('seizures.email-doctor');
+
+    // Обратная связь: письмо владельцу проекта (config feedback.address);
+    // анонимный флаг отправляет только текст. Лимит жёстче экспортных
+    // писем — адресат фиксирован, спам дороже.
+    Route::get('feedback', [FeedbackController::class, 'edit'])->name('feedback.edit');
+
+    Route::post('feedback', [FeedbackController::class, 'store'])
+        ->middleware('throttle:3,1')
+        ->name('feedback.store');
 });
 
 require __DIR__.'/settings.php';

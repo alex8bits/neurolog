@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { LayoutGrid, Heart, Smartphone } from '@lucide/vue';
+import { LayoutGrid, Heart, MessageSquare, Smartphone } from '@lucide/vue';
 import { onMounted, ref } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import NavMain from '@/components/NavMain.vue';
@@ -18,6 +18,7 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
+import { edit as feedbackEdit } from '@/routes/feedback';
 import type { NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
@@ -25,6 +26,11 @@ const mainNavItems: NavItem[] = [
         title: 'Журнал приступов',
         href: dashboard(),
         icon: LayoutGrid,
+    },
+    {
+        title: 'Обратная связь',
+        href: feedbackEdit().url,
+        icon: MessageSquare,
     },
 ];
 

@@ -829,6 +829,19 @@ export default function JournalScreen() {
                             </Text>
                         </Pressable>
 
+                        <Pressable
+                            accessibilityRole="button"
+                            style={styles.menuItem}
+                            onPress={() => {
+                                closeMenu();
+                                router.push('/(journal)/feedback');
+                            }}
+                        >
+                            <Text style={styles.menuItemLabel}>
+                                Обратная связь
+                            </Text>
+                        </Pressable>
+
                         {updateVersion !== null ? (
                             <Pressable
                                 accessibilityRole="button"

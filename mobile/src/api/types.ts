@@ -119,3 +119,12 @@ export interface UpdatePasswordInput {
     password: string;
     password_confirmation: string;
 }
+
+/** Тело POST /feedback (422: пустые имя/почта/короткий текст — errors
+ *  по полям name/email/message). */
+export interface FeedbackInput {
+    anonymous: boolean;
+    name: string;
+    email: string;
+    message: string;
+}

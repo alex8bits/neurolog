@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\FeedbackController;
 use App\Http\Controllers\Api\V1\JournalExportController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\SeizureController;
@@ -74,4 +75,11 @@ Route::middleware('auth:sanctum')->name('api.v1.')->group(function () {
     Route::post('seizures/email-doctor', [JournalExportController::class, 'emailDoctor'])
         ->middleware('throttle:5,1')
         ->name('seizures.email-doctor');
+
+    // Обратная связь: письмо владельцу проекта (config feedback.address);
+    // анонимный флаг отправляет только текст. Лимит жёстче экспортных
+    // писем — адресат фиксирован, спам дороже.
+    Route::post('feedback', [FeedbackController::class, 'store'])
+        ->middleware('throttle:3,1')
+        ->name('feedback.store');
 });

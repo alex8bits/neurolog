@@ -442,15 +442,28 @@ export default function SettingsScreen() {
         }
     }
 
-    /** «Поддержать проект»: открывает страницу сбора выбранного банка
-     *  в браузере; при недоступности (нет браузера/ссылки) — короткий
-     *  Alert. */
-    async function onDonate(url: string): Promise<void> {
+    /** Открыть страницу сбора в браузере; при недоступности (нет
+     *  браузера/ссылки) — короткий Alert. */
+    async function openDonateUrl(url: string): Promise<void> {
         try {
             await Linking.openURL(url);
         } catch {
             Alert.alert('', 'Не удалось открыть страницу сбора.');
         }
+    }
+
+    /** «Поддержать проект»: диалог выбора банка (Т-Банк/Сбербанк), затем
+     *  страница сбора в браузере. */
+    function onDonate(): void {
+        Alert.alert('Поддержать проект', 'Выберите, куда перейти:', [
+            { text: 'Отмена', style: 'cancel' },
+            ...DONATE_URLS.map((donate) => ({
+                text: donate.label,
+                onPress: () => {
+                    void openDonateUrl(donate.url);
+                },
+            })),
+        ]);
     }
 
     /** Выход (логика прежнего экрана настроек): гвард сам уведёт на
@@ -782,23 +795,15 @@ export default function SettingsScreen() {
                         )}
                     </View>
 
-                    <View style={styles.donateRow}>
-                        {DONATE_URLS.map((donate) => (
-                            <Pressable
-                                key={donate.url}
-                                accessibilityRole="button"
-                                accessibilityLabel={`Поддержать проект — ${donate.label}`}
-                                style={styles.donate}
-                                onPress={() => {
-                                    void onDonate(donate.url);
-                                }}
-                            >
-                                <Text style={styles.donateLabel}>
-                                    {`Поддержать\n${donate.label}`}
-                                </Text>
-                            </Pressable>
-                        ))}
-                    </View>
+                    <Pressable
+                        accessibilityRole="button"
+                        style={styles.donate}
+                        onPress={onDonate}
+                    >
+                        <Text style={styles.donateLabel}>
+                            Поддержать проект
+                        </Text>
+                    </Pressable>
 
                     <Pressable
                         accessibilityRole="button"
@@ -1029,24 +1034,18 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '600',
     },
-    donateRow: {
-        flexDirection: 'row',
-        gap: 12,
-        marginBottom: 12,
-    },
     donate: {
         alignItems: 'center',
         borderColor: '#ccc',
         borderRadius: 8,
         borderWidth: 1,
-        flex: 1,
+        marginBottom: 12,
         paddingVertical: 12,
     },
     donateLabel: {
         color: '#2f6fde',
         fontSize: 16,
         fontWeight: '600',
-        textAlign: 'center',
     },
     logout: {
         alignItems: 'center',

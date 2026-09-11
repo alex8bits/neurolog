@@ -42,7 +42,7 @@ const groups = computed(() => groupRowsByDay(props.rows));
                 <li
                     v-for="row in group.rows"
                     :key="row.id"
-                    class="flex items-start justify-between gap-3 border-b border-border/40 py-2 text-sm last:border-b-0"
+                    class="flex items-center justify-between gap-3 border-b border-border/40 text-sm last:border-b-0"
                 >
                     <div class="flex min-w-0 flex-1 items-baseline gap-3">
                         <span class="shrink-0 font-semibold tabular-nums">

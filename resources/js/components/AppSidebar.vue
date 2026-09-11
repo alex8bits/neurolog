@@ -34,9 +34,16 @@ const mainNavItems: NavItem[] = [
 const APP_DOWNLOAD_URL = '/downloads/seizure.apk';
 const appVersion = ref<string | null>(null);
 
-// Сбор Т-Банка для добровольных пожертвований; внешняя страница,
-// открывается в новой вкладке.
-const DONATE_URL = 'https://www.tbank.ru/cf/41k9RdG5ibo';
+// Сборы добровольных пожертвований (Т-Банк и Сбер) — внешние страницы,
+// открываются в новой вкладке. Ссылка Сбера — короткий адрес его
+// мессенджера, счёт в банке иметь не обязательно.
+const DONATE_URLS = [
+    { label: 'Т-Банк', url: 'https://www.tbank.ru/cf/41k9RdG5ibo' },
+    {
+        label: 'Сбербанк',
+        url: 'https://messenger.sbrf.ru/sl/4YhMIBtzuatnweYM0',
+    },
+];
 
 onMounted(() => {
     fetch('/downloads/app-release.json', {
@@ -99,17 +106,23 @@ onMounted(() => {
             <SidebarGroup class="px-2 py-0">
                 <SidebarGroupLabel>Проект</SidebarGroupLabel>
                 <SidebarMenu>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton as-child tooltip="Поддержать проект">
-                            <!-- Обычный <a>, не Link: внешняя страница сбора
-                                 открывается в новой вкладке. -->
+                    <!-- Обычные <a>, не Link: внешние страницы сборов
+                         открываются в новой вкладке. -->
+                    <SidebarMenuItem
+                        v-for="donate in DONATE_URLS"
+                        :key="donate.url"
+                    >
+                        <SidebarMenuButton
+                            as-child
+                            :tooltip="`Поддержать проект — ${donate.label}`"
+                        >
                             <a
-                                :href="DONATE_URL"
+                                :href="donate.url"
                                 target="_blank"
                                 rel="noopener noreferrer"
                             >
                                 <Heart />
-                                <span>Поддержать проект</span>
+                                <span>Поддержать ({{ donate.label }})</span>
                             </a>
                         </SidebarMenuButton>
                     </SidebarMenuItem>

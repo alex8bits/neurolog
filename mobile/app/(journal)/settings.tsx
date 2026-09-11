@@ -30,9 +30,16 @@ const EMAIL_MAX_LENGTH = 255;
 
 const GENERIC_ERROR_TEXT = 'Сервер недоступен, попробуйте позже.';
 
-/** Сбор Т-Банка для добровольных пожертвований — внешняя страница,
- *  открывается в браузере устройства. */
-const DONATE_URL = 'https://www.tbank.ru/cf/41k9RdG5ibo';
+/** Сборы добровольных пожертвований — внешние страницы, открываются
+ *  в браузере устройства: Т-Банк и Сбер (ссылка Сбера — короткий адрес
+ *  его мессенджера, счёт в банке иметь не обязательно). */
+const DONATE_URLS = [
+    { label: 'Т-Банк', url: 'https://www.tbank.ru/cf/41k9RdG5ibo' },
+    {
+        label: 'Сбербанк',
+        url: 'https://messenger.sbrf.ru/sl/4YhMIBtzuatnweYM0',
+    },
+];
 
 /** Текст ошибки загрузки: ApiError — по kind (userMessage), неожиданное —
  *  общий текст. */
@@ -435,11 +442,12 @@ export default function SettingsScreen() {
         }
     }
 
-    /** «Поддержать проект»: открывает страницу сбора в браузере;
-     *  при недоступности (нет браузера/ссылки) — короткий Alert. */
-    async function onDonate(): Promise<void> {
+    /** «Поддержать проект»: открывает страницу сбора выбранного банка
+     *  в браузере; при недоступности (нет браузера/ссылки) — короткий
+     *  Alert. */
+    async function onDonate(url: string): Promise<void> {
         try {
-            await Linking.openURL(DONATE_URL);
+            await Linking.openURL(url);
         } catch {
             Alert.alert('', 'Не удалось открыть страницу сбора.');
         }
@@ -774,15 +782,23 @@ export default function SettingsScreen() {
                         )}
                     </View>
 
-                    <Pressable
-                        accessibilityRole="button"
-                        style={styles.donate}
-                        onPress={onDonate}
-                    >
-                        <Text style={styles.donateLabel}>
-                            Поддержать проект
-                        </Text>
-                    </Pressable>
+                    <View style={styles.donateRow}>
+                        {DONATE_URLS.map((donate) => (
+                            <Pressable
+                                key={donate.url}
+                                accessibilityRole="button"
+                                accessibilityLabel={`Поддержать проект — ${donate.label}`}
+                                style={styles.donate}
+                                onPress={() => {
+                                    void onDonate(donate.url);
+                                }}
+                            >
+                                <Text style={styles.donateLabel}>
+                                    {`Поддержать\n${donate.label}`}
+                                </Text>
+                            </Pressable>
+                        ))}
+                    </View>
 
                     <Pressable
                         accessibilityRole="button"
@@ -1013,18 +1029,24 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '600',
     },
+    donateRow: {
+        flexDirection: 'row',
+        gap: 12,
+        marginBottom: 12,
+    },
     donate: {
         alignItems: 'center',
         borderColor: '#ccc',
         borderRadius: 8,
         borderWidth: 1,
-        marginBottom: 12,
+        flex: 1,
         paddingVertical: 12,
     },
     donateLabel: {
         color: '#2f6fde',
         fontSize: 16,
         fontWeight: '600',
+        textAlign: 'center',
     },
     logout: {
         alignItems: 'center',

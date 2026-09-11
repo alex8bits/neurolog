@@ -6,6 +6,8 @@ import {
     ActivityIndicator,
     Alert,
     FlatList,
+    Linking,
+    Modal,
     Pressable,
     RefreshControl,
     StyleSheet,
@@ -21,6 +23,8 @@ import {
     listSeizures,
 } from '@/api/seizures';
 import type { ExportPeriodParams, Seizure } from '@/api/types';
+import DonateDialog from '@/components/DonateDialog';
+import { APK_DOWNLOAD_URL } from '@/config/env';
 import { deviceTimezone } from '@/config/timezone';
 import { maybePromptUpdate } from '@/updates/prompt';
 import {
@@ -164,6 +168,16 @@ export default function JournalScreen() {
 
     // Ошибка валидации custom-диапазона (от > до): запрос не шлём.
     const [periodError, setPeriodError] = useState<string | null>(null);
+
+    // --- Бургер-меню шапки ---
+    const [menuVisible, setMenuVisible] = useState(false);
+
+    // Диалог «Поддержать проект» открывается из меню.
+    const [donateVisible, setDonateVisible] = useState(false);
+
+    // Доступное обновление (мета новее установленной) для пункта меню
+    // «Скачать обновление»; null — обновления нет/неизвестно.
+    const [updateVersion, setUpdateVersion] = useState<string | null>(null);
 
     /**
      * Загрузка списка по текущему фильтру (periodRef). При неудачном
@@ -407,10 +421,12 @@ export default function JournalScreen() {
     useEffect(() => clearSelfStatusTimer, []);
 
     // Проверка обновления — раз за жизнь процесса (флаг внутри модуля),
-    // только на входе журнала: /quick этот экран не монтирует. Ошибки
-    // проверки молчат — обновление не должно мешать журналу.
+    // только на входе журнала: /quick этот экран не монтирует. Найденная
+    // версия питает пункт «Скачать обновление» бургер-меню (отказ
+    // «Позже» от стартового диалога пункт не прячет). Ошибки проверки
+    // молчат — обновление не должно мешать журналу.
     useEffect(() => {
-        void maybePromptUpdate();
+        void maybePromptUpdate().then(setUpdateVersion);
     }, []);
 
     /** «Отправить доктору»: переход на экран-форму письма с периодом
@@ -429,7 +445,23 @@ export default function JournalScreen() {
         });
     }
 
-    // Шапка: «Настройки» и «+» идут на абсолютные typed routes
+    /** Закрыть бургер-меню (тап по затемнению / back / пункт меню). */
+    function closeMenu(): void {
+        setMenuVisible(false);
+    }
+
+    /** «Скачать обновление» из меню: APK отдаёт сайт статикой nginx —
+     *  без авторизации; при неудаче Linking — короткий Alert (паттерн
+     *  стартового диалога обновления). */
+    function openUpdateDownload(): void {
+        closeMenu();
+
+        void Linking.openURL(APK_DOWNLOAD_URL).catch(() => {
+            Alert.alert('', 'Не удалось открыть страницу загрузки.');
+        });
+    }
+
+    // Шапка: бургер-меню и «+» идут на абсолютные typed routes
     // группы (journal).
     return (
         <View
@@ -440,13 +472,16 @@ export default function JournalScreen() {
         >
             <View style={styles.header}>
                 <Pressable
-                    accessibilityRole="link"
-                    style={styles.settingsLink}
+                    accessibilityRole="button"
+                    accessibilityLabel="Меню"
+                    style={styles.menuButton}
                     onPress={() => {
-                        router.push('/(journal)/settings');
+                        setMenuVisible(true);
                     }}
                 >
-                    <Text style={styles.linkLabel}>Настройки</Text>
+                    <View style={styles.menuBar} />
+                    <View style={styles.menuBar} />
+                    <View style={styles.menuBar} />
                 </Pressable>
                 <Text style={styles.title}>Журнал</Text>
                 <Pressable
@@ -740,6 +775,86 @@ export default function JournalScreen() {
                     )}
                 />
             ) : null}
+
+            {/* Бургер-меню: панель слева, тап по затемнению закрывает.
+                Внутренний Pressable без onPress гасит «протапывание»
+                сквозь панель в оверлей. «Журнал» — текущий экран (✓),
+                пункт просто закрывает меню; «Скачать обновление» рендерится
+                только при найденном обновлении. */}
+            <Modal
+                visible={menuVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={closeMenu}
+            >
+                <Pressable style={styles.menuOverlay} onPress={closeMenu}>
+                    <Pressable
+                        style={[
+                            styles.menuPanel,
+                            { paddingTop: insets.top + 16 },
+                        ]}
+                    >
+                        <Text style={styles.menuTitle}>График приступов</Text>
+
+                        <Pressable
+                            accessibilityRole="button"
+                            accessibilityState={{ selected: true }}
+                            style={styles.menuItem}
+                            onPress={closeMenu}
+                        >
+                            <Text style={styles.menuItemLabel}>Журнал ✓</Text>
+                        </Pressable>
+
+                        <Pressable
+                            accessibilityRole="button"
+                            style={styles.menuItem}
+                            onPress={() => {
+                                closeMenu();
+                                router.push('/(journal)/settings');
+                            }}
+                        >
+                            <Text style={styles.menuItemLabel}>Настройки</Text>
+                        </Pressable>
+
+                        <Pressable
+                            accessibilityRole="button"
+                            style={styles.menuItem}
+                            onPress={() => {
+                                closeMenu();
+                                setDonateVisible(true);
+                            }}
+                        >
+                            <Text style={styles.menuItemLabel}>
+                                Поддержать проект
+                            </Text>
+                        </Pressable>
+
+                        {updateVersion !== null ? (
+                            <Pressable
+                                accessibilityRole="button"
+                                style={styles.menuItem}
+                                onPress={openUpdateDownload}
+                            >
+                                <Text
+                                    style={[
+                                        styles.menuItemLabel,
+                                        styles.menuUpdateLabel,
+                                    ]}
+                                >
+                                    {`Скачать обновление (${updateVersion})`}
+                                </Text>
+                            </Pressable>
+                        ) : null}
+                    </Pressable>
+                </Pressable>
+            </Modal>
+
+            <DonateDialog
+                visible={donateVisible}
+                onClose={() => {
+                    setDonateVisible(false);
+                }}
+            />
         </View>
     );
 }
@@ -757,12 +872,44 @@ const styles = StyleSheet.create({
         paddingHorizontal: 24,
         paddingTop: 16,
     },
-    settingsLink: {
-        paddingVertical: 6,
+    menuButton: {
+        alignItems: 'center',
+        gap: 3,
+        paddingVertical: 8,
     },
-    linkLabel: {
+    menuBar: {
+        backgroundColor: '#2f6fde',
+        borderRadius: 1,
+        height: 2,
+        width: 20,
+    },
+    menuOverlay: {
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        flex: 1,
+        flexDirection: 'row',
+    },
+    menuPanel: {
+        backgroundColor: '#fff',
+        paddingHorizontal: 20,
+        paddingBottom: 24,
+        width: 280,
+    },
+    menuTitle: {
+        color: '#000',
+        fontSize: 18,
+        fontWeight: '600',
+        marginBottom: 8,
+    },
+    menuItem: {
+        paddingVertical: 14,
+    },
+    menuItemLabel: {
+        color: '#000',
+        fontSize: 16,
+    },
+    menuUpdateLabel: {
         color: '#2f6fde',
-        fontSize: 15,
+        fontWeight: '600',
     },
     title: {
         color: '#000',

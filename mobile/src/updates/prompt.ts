@@ -13,7 +13,7 @@ import * as SecureStore from 'expo-secure-store';
 import { Alert, Linking } from 'react-native';
 
 import { APK_DOWNLOAD_URL, RELEASE_META_URL } from '@/config/env';
-import { shouldPromptForUpdate } from '@/updates/version';
+import { isNewerVersion, shouldPromptForUpdate } from '@/updates/version';
 
 // Паттерн единого ключа (как AUTH_KEY в auth/tokens.ts), но значение —
 // plain-строка: номер версии меты, на которую пользователь ответил отказом.
@@ -25,9 +25,16 @@ const DISMISSED_VERSION_KEY = 'update.dismissedVersion';
 // случится следующим холодным стартом.
 let checkedThisProcess = false;
 
+// Мета новее установленной, найденная в этом процессе. Её показывает пункт
+// «Скачать обновление» бургер-меню журнала — независимо от отказа:
+// «Позже» глушит только стартовый диалог, не знание о доступном
+// обновлении (решение показать пункт — тоже чистое поле isNewerVersion).
+let availableVersion: string | null = null;
+
 /** Только для тестов: сброс одноразовости «за процесс». */
 export function __resetForTests(): void {
     checkedThisProcess = false;
+    availableVersion = null;
 }
 
 /** Сохранённый отказ; битая запись = «нет отказа» (как readTokens). */
@@ -55,9 +62,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null;
 }
 
-export async function maybePromptUpdate(): Promise<void> {
+/**
+ * Проверить обновление и, если мета новее и отказа на неё нет, показать
+ * системный диалог. Возвращает версию доступного обновления (мета новее
+ * установленной; null — нет/неизвестна): бургер-меню журнала рисует по ней
+ * пункт «Скачать обновление». Отказ «Позже» на возвращаемое значение не
+ * влияет. Все сбои — тихий fail-open: проверка не должна мешать входу.
+ */
+export async function maybePromptUpdate(): Promise<string | null> {
     if (checkedThisProcess) {
-        return;
+        return availableVersion;
     }
 
     checkedThisProcess = true;
@@ -79,14 +93,23 @@ export async function maybePromptUpdate(): Promise<void> {
             }
         }
     } catch {
-        return;
+        return availableVersion;
     }
 
     // Битая мета — тупиковый путь: проверяем до readDismissed(), чтобы
     // не делать лишний I/O в SecureStore.
     if (metaVersion === null) {
-        return;
+        return availableVersion;
     }
+
+    // Доступность для пункта меню — до учёта отказа (см. докблок выше).
+    const installedVersion = nativeApplicationVersion ?? null;
+
+    availableVersion =
+        installedVersion !== null &&
+        isNewerVersion(metaVersion, installedVersion)
+            ? metaVersion
+            : null;
 
     // 2. Решение чистым ядром: своя версия — из нативного манифеста
     //    (константа модуля, побочных эффектов у чтения нет).
@@ -95,15 +118,17 @@ export async function maybePromptUpdate(): Promise<void> {
     if (
         !shouldPromptForUpdate({
             metaVersion,
-            installedVersion: nativeApplicationVersion ?? null,
+            installedVersion,
             dismissedVersion,
         })
     ) {
-        return;
+        return availableVersion;
     }
 
     // 3. Здесь metaVersion сужен до string — без приведения as string.
     promptDownload(metaVersion);
+
+    return availableVersion;
 }
 
 /** Промпт обновления: «Скачать» открывает APK в браузере и ничего не

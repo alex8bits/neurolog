@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
     Alert,
-    Linking,
     Modal,
     Pressable,
     ScrollView,
@@ -29,17 +28,6 @@ const NAME_MAX_LENGTH = 255;
 const EMAIL_MAX_LENGTH = 255;
 
 const GENERIC_ERROR_TEXT = 'Сервер недоступен, попробуйте позже.';
-
-/** Сборы добровольных пожертвований — внешние страницы, открываются
- *  в браузере устройства: Т-Банк и Сбер (ссылка Сбера — короткий адрес
- *  его мессенджера, счёт в банке иметь не обязательно). */
-const DONATE_URLS = [
-    { label: 'Т-Банк', url: 'https://www.tbank.ru/cf/41k9RdG5ibo' },
-    {
-        label: 'Сбербанк',
-        url: 'https://messenger.sbrf.ru/sl/4YhMIBtzuatnweYM0',
-    },
-];
 
 /** Текст ошибки загрузки: ApiError — по kind (userMessage), неожиданное —
  *  общий текст. */
@@ -442,30 +430,6 @@ export default function SettingsScreen() {
         }
     }
 
-    /** Открыть страницу сбора в браузере; при недоступности (нет
-     *  браузера/ссылки) — короткий Alert. */
-    async function openDonateUrl(url: string): Promise<void> {
-        try {
-            await Linking.openURL(url);
-        } catch {
-            Alert.alert('', 'Не удалось открыть страницу сбора.');
-        }
-    }
-
-    /** «Поддержать проект»: диалог выбора банка (Т-Банк/Сбербанк), затем
-     *  страница сбора в браузере. */
-    function onDonate(): void {
-        Alert.alert('Поддержать проект', 'Выберите, куда перейти:', [
-            { text: 'Отмена', style: 'cancel' },
-            ...DONATE_URLS.map((donate) => ({
-                text: donate.label,
-                onPress: () => {
-                    void openDonateUrl(donate.url);
-                },
-            })),
-        ]);
-    }
-
     /** Выход (логика прежнего экрана настроек): гвард сам уведёт на
      *  /(auth)/login после смены статуса. */
     async function onLogout(): Promise<void> {
@@ -797,16 +761,6 @@ export default function SettingsScreen() {
 
                     <Pressable
                         accessibilityRole="button"
-                        style={styles.donate}
-                        onPress={onDonate}
-                    >
-                        <Text style={styles.donateLabel}>
-                            Поддержать проект
-                        </Text>
-                    </Pressable>
-
-                    <Pressable
-                        accessibilityRole="button"
                         accessibilityState={{ disabled: loggingOut }}
                         style={[
                             styles.logout,
@@ -1031,19 +985,6 @@ const styles = StyleSheet.create({
     },
     dangerSubmitLabel: {
         color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    donate: {
-        alignItems: 'center',
-        borderColor: '#ccc',
-        borderRadius: 8,
-        borderWidth: 1,
-        marginBottom: 12,
-        paddingVertical: 12,
-    },
-    donateLabel: {
-        color: '#2f6fde',
         fontSize: 16,
         fontWeight: '600',
     },

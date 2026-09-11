@@ -119,6 +119,16 @@ describe('maybePromptUpdate', () => {
         expect(alertMock).not.toHaveBeenCalled();
     });
 
+    it('для пункта меню: возвращает доступную версию даже при сохранённом отказе', async () => {
+        getItemAsync.mockResolvedValue('0.0.6');
+        releaseMeta();
+
+        // «Позже» глушит только стартовый диалог — бургер-меню всё равно
+        // должно рисовать «Скачать обновление (0.0.6)».
+        await expect(maybePromptUpdate()).resolves.toBe('0.0.6');
+        expect(alertMock).not.toHaveBeenCalled();
+    });
+
     it('версии равны: Alert не показан', async () => {
         fetchMock.mockResolvedValue(jsonResponse(200, { version: '0.0.5' }));
 
@@ -146,7 +156,7 @@ describe('maybePromptUpdate', () => {
         __resetForTests();
         fetchMock.mockRejectedValue(new TypeError('Network request failed'));
 
-        await expect(maybePromptUpdate()).resolves.toBeUndefined();
+        await expect(maybePromptUpdate()).resolves.toBeNull();
         expect(alertMock).not.toHaveBeenCalled();
         expect(fetchMock).toHaveBeenCalledTimes(3);
     });

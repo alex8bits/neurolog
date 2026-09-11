@@ -13,7 +13,12 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { deleteAccount, fetchProfile, updateProfile } from '@/api/profile';
+import {
+    changePassword,
+    deleteAccount,
+    fetchProfile,
+    updateProfile,
+} from '@/api/profile';
 import type { TimezoneGroup, UserProfile } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { ApiError, userMessage } from '@/utils/errors';
@@ -71,9 +76,12 @@ function zoneSections(
  * после успеха изменённый email синхронизируется с SecureStore и
  * состоянием auth (updateEmail). Пояс выбирается в Modal-пикере
  * (поиск + SectionList по регионам) — нативного пикера поясов на
- * Android нет. Внизу — опасная зона: удаление аккаунта (DELETE /profile
- * с подтверждением паролем; успех → только локальный signOutLocally,
- * токены уже отозваны сервером, на логин уводит гвард корня) и выход.
+ * Android нет. Смена пароля — PATCH /profile/password: текущий +
+ * новый + подтверждение, 422 мапится в подсветку полей, после успеха
+ * поля очищаются (токены живы, перелогин не нужен). Внизу — опасная
+ * зона: удаление аккаунта (DELETE /profile с подтверждением паролем;
+ * успех → только локальный signOutLocally, токены уже отозваны
+ * сервером, на логин уводит гвард корня) и выход.
  */
 export default function SettingsScreen() {
     const { logout, updateEmail, signOutLocally } = useAuth();
@@ -116,6 +124,20 @@ export default function SettingsScreen() {
     // стирать подсветку полей профиля (две логически разные формы).
     const [deleteError, setDeleteError] = useState<string | null>(null);
     const [deleteFieldErrors, setDeleteFieldErrors] = useState<
+        Record<string, string[]>
+    >({});
+
+    // --- Смена пароля ---
+    const [currentPassword, setCurrentPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [newPasswordConfirmation, setNewPasswordConfirmation] = useState('');
+    const [changingPassword, setChangingPassword] = useState(false);
+
+    // Ошибки смены пароля живут отдельно — та же логика, что у зоны
+    // удаления: сообщения и подсветка видны рядом с полями этой формы
+    // и не стирают подсветку полей профиля.
+    const [passwordError, setPasswordError] = useState<string | null>(null);
+    const [passwordFieldErrors, setPasswordFieldErrors] = useState<
         Record<string, string[]>
     >({});
 
@@ -299,6 +321,86 @@ export default function SettingsScreen() {
         }
     }
 
+    /** Ввод после ошибки смены пароля: гасим ошибки только этой формы. */
+    function clearPasswordError(field: string): void {
+        setPasswordError(null);
+
+        setPasswordFieldErrors((prev) => {
+            if (!(field in prev)) {
+                return prev;
+            }
+
+            const next = { ...prev };
+
+            delete next[field];
+
+            return next;
+        });
+    }
+
+    /** «Сменить пароль»: клиентски проверяем непустоту и совпадение
+     *  подтверждения, дальше PATCH; успех чистит поля (сессия жива —
+     *  токены сервер не отзывает), 422 — подсветка полей. */
+    async function onChangePassword(): Promise<void> {
+        const errors: Record<string, string[]> = {};
+
+        if (currentPassword === '') {
+            errors.current_password = ['Введите текущий пароль.'];
+        }
+
+        if (newPassword === '') {
+            errors.password = ['Введите новый пароль.'];
+        }
+
+        if (newPasswordConfirmation === '') {
+            errors.password_confirmation = ['Повторите новый пароль.'];
+        } else if (newPassword !== newPasswordConfirmation) {
+            errors.password_confirmation = ['Пароли не совпадают.'];
+        }
+
+        if (Object.keys(errors).length > 0) {
+            setPasswordFieldErrors(errors);
+            setPasswordError(null);
+
+            return;
+        }
+
+        setChangingPassword(true);
+        setPasswordError(null);
+        setPasswordFieldErrors({});
+
+        try {
+            await changePassword({
+                current_password: currentPassword,
+                password: newPassword,
+                password_confirmation: newPasswordConfirmation,
+            });
+
+            setCurrentPassword('');
+            setNewPassword('');
+            setNewPasswordConfirmation('');
+
+            Alert.alert('', 'Пароль обновлён');
+        } catch (error) {
+            if (
+                error instanceof ApiError &&
+                error.kind === 'validation' &&
+                error.fieldErrors !== undefined &&
+                Object.keys(error.fieldErrors).length > 0
+            ) {
+                setPasswordFieldErrors(error.fieldErrors);
+            } else {
+                setPasswordError(
+                    error instanceof ApiError
+                        ? userMessage(error)
+                        : GENERIC_ERROR_TEXT,
+                );
+            }
+        } finally {
+            setChangingPassword(false);
+        }
+    }
+
     /** «Удалить навсегда»: сервер проверяет пароль, отзывает токены и
      *  удаляет записи каскадами — после 204 достаточно локального
      *  выхода (на логин уводит гвард). Сетевая ошибка оставляет сессию
@@ -477,6 +579,114 @@ export default function SettingsScreen() {
                         >
                             <Text style={styles.submitLabel}>
                                 {submitting ? 'Сохраняем…' : 'Сохранить'}
+                            </Text>
+                        </Pressable>
+                    </View>
+
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>Смена пароля</Text>
+
+                        <View style={styles.field}>
+                            <Text style={styles.label}>Текущий пароль</Text>
+                            <TextInput
+                                style={[
+                                    styles.input,
+                                    passwordFieldErrors.current_password &&
+                                        styles.inputInvalid,
+                                ]}
+                                value={currentPassword}
+                                onChangeText={(value) => {
+                                    setCurrentPassword(value);
+                                    clearPasswordError('current_password');
+                                }}
+                                accessibilityLabel="Текущий пароль"
+                                secureTextEntry
+                                autoCapitalize="none"
+                                autoCorrect={false}
+                            />
+                            {passwordFieldErrors.current_password ? (
+                                <Text style={styles.fieldError}>
+                                    {passwordFieldErrors.current_password.join(
+                                        ' ',
+                                    )}
+                                </Text>
+                            ) : null}
+                        </View>
+
+                        <View style={styles.field}>
+                            <Text style={styles.label}>Новый пароль</Text>
+                            <TextInput
+                                style={[
+                                    styles.input,
+                                    passwordFieldErrors.password &&
+                                        styles.inputInvalid,
+                                ]}
+                                value={newPassword}
+                                onChangeText={(value) => {
+                                    setNewPassword(value);
+                                    clearPasswordError('password');
+                                }}
+                                accessibilityLabel="Новый пароль"
+                                secureTextEntry
+                                autoCapitalize="none"
+                                autoCorrect={false}
+                            />
+                            {passwordFieldErrors.password ? (
+                                <Text style={styles.fieldError}>
+                                    {passwordFieldErrors.password.join(' ')}
+                                </Text>
+                            ) : null}
+                        </View>
+
+                        <View style={styles.field}>
+                            <Text style={styles.label}>
+                                Новый пароль ещё раз
+                            </Text>
+                            <TextInput
+                                style={[
+                                    styles.input,
+                                    passwordFieldErrors.password_confirmation &&
+                                        styles.inputInvalid,
+                                ]}
+                                value={newPasswordConfirmation}
+                                onChangeText={(value) => {
+                                    setNewPasswordConfirmation(value);
+                                    clearPasswordError('password_confirmation');
+                                }}
+                                accessibilityLabel="Новый пароль ещё раз"
+                                secureTextEntry
+                                autoCapitalize="none"
+                                autoCorrect={false}
+                            />
+                            {passwordFieldErrors.password_confirmation ? (
+                                <Text style={styles.fieldError}>
+                                    {passwordFieldErrors.password_confirmation.join(
+                                        ' ',
+                                    )}
+                                </Text>
+                            ) : null}
+                        </View>
+
+                        {passwordError ? (
+                            <Text style={styles.formError}>
+                                {passwordError}
+                            </Text>
+                        ) : null}
+
+                        <Pressable
+                            accessibilityRole="button"
+                            accessibilityState={{ disabled: changingPassword }}
+                            style={[
+                                styles.submit,
+                                changingPassword && styles.actionDisabled,
+                            ]}
+                            disabled={changingPassword}
+                            onPress={onChangePassword}
+                        >
+                            <Text style={styles.submitLabel}>
+                                {changingPassword
+                                    ? 'Сохраняем…'
+                                    : 'Сменить пароль'}
                             </Text>
                         </Pressable>
                     </View>

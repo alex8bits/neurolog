@@ -37,6 +37,12 @@ Route::middleware('auth:sanctum')->name('api.v1.')->group(function () {
 
     Route::patch('profile', [ProfileController::class, 'update'])->name('profile.update');
 
+    // Смена пароля — подтверждение текущим паролем; лимит и ключ те же, что
+    // у веб-смены и удаления профиля (общий бюджет 6/мин на пользователя).
+    Route::patch('profile/password', [ProfileController::class, 'updatePassword'])
+        ->middleware('throttle:6,1')
+        ->name('profile.password.update');
+
     // Подтверждение паролем — брутфорс-щита просит лимит, равный смене пароля в вебе.
     Route::delete('profile', [ProfileController::class, 'destroy'])
         ->middleware('throttle:6,1')

@@ -6,6 +6,7 @@ use App\Models\Seizure;
 use App\Models\User;
 use App\Services\TokenService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -18,6 +19,7 @@ class ProfileApiTest extends TestCase
     {
         $this->getJson(route('api.v1.profile.show'))->assertUnauthorized();
         $this->patchJson(route('api.v1.profile.update'), [])->assertUnauthorized();
+        $this->patchJson(route('api.v1.profile.password.update'), [])->assertUnauthorized();
         $this->deleteJson(route('api.v1.profile.destroy'), [])->assertUnauthorized();
     }
 
@@ -192,6 +194,38 @@ class ProfileApiTest extends TestCase
         $response->assertOk();
         $response->assertJsonPath('data.timezone', 'UTC');
         $this->assertDatabaseHas('users', ['id' => $user->id, 'timezone' => 'UTC']);
+    }
+
+    public function test_password_update_changes_the_password(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        $response = $this->patchJson(route('api.v1.profile.password.update'), [
+            'current_password' => 'password',
+            'password' => 'new-strong-password',
+            'password_confirmation' => 'new-strong-password',
+        ]);
+
+        $response->assertNoContent();
+        $this->assertTrue(Hash::check('new-strong-password', $user->refresh()->password));
+        $this->assertFalse(Hash::check('password', $user->refresh()->password));
+    }
+
+    public function test_password_update_rejects_a_wrong_current_password(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        $response = $this->patchJson(route('api.v1.profile.password.update'), [
+            'current_password' => 'wrong-password',
+            'password' => 'new-strong-password',
+            'password_confirmation' => 'new-strong-password',
+        ]);
+
+        $response->assertUnprocessable();
+        $response->assertJsonValidationErrors('current_password');
+        $this->assertTrue(Hash::check('password', $user->refresh()->password));
     }
 
     public function test_delete_rejects_a_wrong_password(): void

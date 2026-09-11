@@ -111,3 +111,11 @@ export interface UpdateProfileInput {
     email: string;
     timezone: string;
 }
+
+/** Тело PATCH /profile/password (422: неверный текущий/слабый новый —
+ *  errors по полям current_password/password). */
+export interface UpdatePasswordInput {
+    current_password: string;
+    password: string;
+    password_confirmation: string;
+}

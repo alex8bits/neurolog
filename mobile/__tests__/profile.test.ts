@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { apiFetch } from '@/api/client';
-import { deleteAccount, fetchProfile, updateProfile } from '@/api/profile';
+import {
+    changePassword,
+    deleteAccount,
+    fetchProfile,
+    updateProfile,
+} from '@/api/profile';
 
 vi.mock('@/api/client', () => ({
     apiFetch: vi.fn().mockResolvedValue({ data: [] }),
@@ -57,6 +62,23 @@ describe('updateProfile', () => {
             body: input,
         });
         expect(result).toEqual(profile);
+    });
+});
+
+describe('changePassword', () => {
+    it('PATCH /profile/password с текущим, новым и подтверждением; разрешается без значения', async () => {
+        const input = {
+            current_password: 'old-secret',
+            password: 'new-strong-secret',
+            password_confirmation: 'new-strong-secret',
+        };
+
+        await expect(changePassword(input)).resolves.toBeUndefined();
+
+        expect(apiFetchMock).toHaveBeenCalledWith('/profile/password', {
+            method: 'PATCH',
+            body: input,
+        });
     });
 });
 

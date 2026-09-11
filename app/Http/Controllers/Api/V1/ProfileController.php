@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\PasswordUpdateRequest;
 use App\Http\Requests\Api\V1\ProfileDeleteRequest;
 use App\Http\Requests\Api\V1\ProfileUpdateRequest;
 use App\Http\Resources\Api\V1\UserResource;
@@ -63,6 +64,24 @@ class ProfileController extends Controller
         $user->save();
 
         return UserResource::make($user)->response();
+    }
+
+    /**
+     * Update the user's password.
+     *
+     * Line-for-line the web flow (`Settings\SecurityController::update`): the
+     * current password is the re-authentication (checked by validation), the
+     * new one is hashed by the model cast. Tokens stay as they are — the
+     * user keeps the session they just re-authenticated with, same as the
+     * web keeps its session after a password change.
+     */
+    public function updatePassword(PasswordUpdateRequest $request): Response
+    {
+        $request->user()->update([
+            'password' => $request->password,
+        ]);
+
+        return response()->noContent();
     }
 
     /**

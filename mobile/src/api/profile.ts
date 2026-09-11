@@ -1,6 +1,7 @@
 import { apiFetch } from '@/api/client';
 import type {
     ProfileResponse,
+    UpdatePasswordInput,
     UpdateProfileInput,
     UserProfile,
 } from '@/api/types';
@@ -22,6 +23,18 @@ export async function updateProfile(
     });
 
     return response.data;
+}
+
+/** PATCH /profile/password: смена пароля с подтверждением текущим; 422 —
+ *  неверный текущий/слабый новый (errors по полям). 204 — пароль изменён,
+ *  токены сервер не отзывает, перелогин не нужен. */
+export async function changePassword(
+    input: UpdatePasswordInput,
+): Promise<void> {
+    await apiFetch<void>('/profile/password', {
+        method: 'PATCH',
+        body: input,
+    });
 }
 
 /** DELETE /profile: удаление аккаунта с подтверждением паролем (422 —

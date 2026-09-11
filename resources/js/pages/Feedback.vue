@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, usePage } from '@inertiajs/vue3';
+import { Form, Head, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import FeedbackController from '@/actions/App/Http/Controllers/FeedbackController';
 import Heading from '@/components/Heading.vue';
@@ -11,9 +11,11 @@ import { Label } from '@/components/ui/label';
 
 const page = usePage();
 
-// Префилл из профиля: поля редактируемые, при отправке берётся то, что
-// в них сейчас (DOM читает Inertia Form), а не значение профиля.
+// Префилл из профиля в локальные refs: форма контролируемая (v-model),
+// отправляется ровно то, что в полях.
 const user = computed(() => page.props.auth.user);
+const name = ref(user.value.name);
+const email = ref(user.value.email);
 
 // Локальный флаг анонимности: hidden-input несёт '1'/'0' в форму (правило
 // boolean), а сам чекбокс — shadcn-компонент без нативного name.
@@ -44,14 +46,12 @@ function onAnonymousChange(value: boolean | 'indeterminate'): void {
             v-slot="{ errors, processing }"
             @success="message = ''"
         >
-            <!-- Disabled-поля не попадают в FormData — при анонимном
-                 обращении имя/почта не уходят на сервер вовсе. -->
             <div class="grid gap-2">
                 <Label for="name">Имя</Label>
                 <Input
                     id="name"
                     name="name"
-                    :value="user.name"
+                    v-model="name"
                     :disabled="anonymous"
                     maxlength="255"
                 />
@@ -64,7 +64,7 @@ function onAnonymousChange(value: boolean | 'indeterminate'): void {
                     id="email"
                     name="email"
                     type="email"
-                    :value="user.email"
+                    v-model="email"
                     :disabled="anonymous"
                     maxlength="255"
                 />

@@ -32,7 +32,9 @@ function onAnonymousChange(value: boolean | 'indeterminate'): void {
 
     <h1 class="sr-only">Обратная связь</h1>
 
-    <div class="flex flex-col space-y-6">
+    <!-- Контейнер как у журнала (p-4/flex-1): боковые отступы от
+         сайдбара и заполнение высоты, а не прилипший к краю контент. -->
+    <div class="flex h-full flex-1 flex-col gap-6 p-4">
         <Heading
             variant="small"
             title="Обратная связь"

@@ -15,7 +15,10 @@ import {
 
 vi.mock('@/api/client', () => ({
     apiDownload: vi.fn(),
-    apiFetch: vi.fn().mockResolvedValue({ data: [] }),
+    apiFetch: vi.fn().mockResolvedValue({
+        data: [],
+        meta: { current_page: 1, last_page: 1, per_page: 50, total: 0 },
+    }),
 }));
 
 const apiFetchMock = vi.mocked(apiFetch);
@@ -93,6 +96,27 @@ describe('listSeizures', () => {
         expect(apiFetchMock).toHaveBeenNthCalledWith(
             2,
             '/seizures?per_page=50&timezone=UTC&to=2026-07-10',
+        );
+    });
+
+    it('догрузка: page дописывается после periodQuery', async () => {
+        await listSeizures({ timezone: 'UTC', page: 2 });
+
+        expect(apiFetchMock).toHaveBeenCalledWith(
+            '/seizures?per_page=50&timezone=UTC&page=2',
+        );
+    });
+
+    it('page сочетается с from/to произвольного периода', async () => {
+        await listSeizures({
+            timezone: 'Europe/Moscow',
+            from: '2026-07-01',
+            to: '2026-07-10',
+            page: 3,
+        });
+
+        expect(apiFetchMock).toHaveBeenCalledWith(
+            '/seizures?per_page=50&timezone=Europe%2FMoscow&from=2026-07-01&to=2026-07-10&page=3',
         );
     });
 });

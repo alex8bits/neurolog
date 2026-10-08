@@ -36,9 +36,20 @@ export interface Seizure {
     created_at: string | null;
 }
 
-/** Тело GET /seizures — пагинатор Laravel; этап 2 потребляет только data. */
+/** Мета пагинатора Laravel в ответе GET /seizures: страницы считаются с 1,
+ *  записи — по 50 свежайших (occurred_at DESC, id DESC). */
+export interface SeizureListMeta {
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+}
+
+/** Тело GET /seizures — пагинатор Laravel; links клиенту не нужен, страницы
+ *  листает по meta (догрузка следующих — loadMore журнала). */
 export interface SeizureListResponse {
     data: Seizure[];
+    meta: SeizureListMeta;
 }
 
 /** Тело ответа POST /seizures (201) — стандартная обёртка data. */
@@ -64,6 +75,8 @@ export interface ListSeizuresParams {
     timezone: string; // IANA
     from?: string; // Y-m-d
     to?: string; // Y-m-d
+    /** Страница пагинатора, 1-based; не задана — первая. */
+    page?: number;
 }
 
 /** Период экспорта/писем: те же параметры, что у списка (GET /seizures). */

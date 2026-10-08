@@ -35,8 +35,12 @@ function periodQuery(params: ExportPeriodParams): string {
 export async function listSeizures(
     params: ListSeizuresParams,
 ): Promise<SeizureListResponse> {
+    // Страница — последним параметром: первая загрузка её не шлёт,
+    // сервер по умолчанию отдаёт страницу 1.
+    const pageQuery = params.page !== undefined ? `&page=${params.page}` : '';
+
     return apiFetch<SeizureListResponse>(
-        `/seizures?per_page=${PER_PAGE}&${periodQuery(params)}`,
+        `/seizures?per_page=${PER_PAGE}&${periodQuery(params)}${pageQuery}`,
     );
 }
 

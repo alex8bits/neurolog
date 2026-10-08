@@ -35,6 +35,7 @@ import {
 import { ApiError, userMessage } from '@/utils/errors';
 import { isCustomRangeValid, periodToRange } from '@/utils/period';
 import type { PeriodFilter } from '@/utils/period';
+import { appendSeizurePage } from '@/utils/seizureList';
 import { formatHm, formatYmd, parseUtcIso } from '@/utils/time';
 
 const GENERIC_ERROR_TEXT = 'Сервер недоступен, попробуйте позже.';
@@ -93,10 +94,18 @@ function rowTimeLabel(occurredAt: string): string {
  * подтверждением) и подсвечивает строку. Гард корневого layout сам уводит
  * на логин при истечении сессии.
  *
- * Фильтр периода: дефолт «Всё время» (from/to не шлются), пресеты
- * «Сегодня / 7 дней / 30 дней» и «Произвольный период». Границы from/to
- * считает periodToRange, сервер трактует их включительно целыми
- * календарными днями в поданной timezone — экран не делает дата-арифметики.
+ * Фильтр периода: дефолт «7 дней», пресеты «Сегодня / 7 дней / 30 дней»,
+ * «Всё время» и «Произвольный период». Границы from/to считает
+ * periodToRange, сервер трактует их включительно целыми календарными
+ * днями в поданной timezone — экран не делает дата-арифметики.
+ *
+ * Пагинация: сервер отдаёт по 50 свежайших записей (occurred_at DESC) —
+ * «Всё время» показывает только их, пока не догрузить остальные. При
+ * докрутке до конца списка loadMore дозапрашивает следующую страницу
+ * (?page=N по мете пагинатора) и дописывает её через appendSeizurePage.
+ * Фокус, pull-to-refresh и смена фильтра всегда перезагружают первую
+ * страницу. Экспорт и письма сервер строит по всему периоду отдельно
+ * от списка — пагинация на документы не влияет.
  *
  * Экспорт под фильтром: «Поделиться DOCX» — отчёт скачивается и уходит в
  * системный шаринг (сохранить/отправить), «Отправить себе» — письмо с
@@ -122,6 +131,11 @@ export default function JournalScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [loadError, setLoadError] = useState<unknown>(null);
     const [inlineError, setInlineError] = useState<string | null>(null);
+
+    // Догрузка страниц (infinite scroll): hasMore — есть ли следующая
+    // страница по мете пагинатора; loadingMore — идёт дозапрос.
+    const [hasMore, setHasMore] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
 
     // Блокирует повторный запуск удаления той же строки.
     const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -156,6 +170,10 @@ export default function JournalScreen() {
     // перезапишет свежие данные.
     const requestSeqRef = useRef(0);
 
+    // Номер последней успешно загруженной страницы: load() всегда начинает
+    // с первой, loadMore запрашивает следующую.
+    const lastPageRef = useRef(1);
+
     // Развёрнута ли строка выбора произвольного периода.
     const [customOpen, setCustomOpen] = useState(false);
 
@@ -180,7 +198,8 @@ export default function JournalScreen() {
     const [updateVersion, setUpdateVersion] = useState<string | null>(null);
 
     /**
-     * Загрузка списка по текущему фильтру (periodRef). При неудачном
+     * Загрузка первой страницы по текущему фильтру (periodRef): сбрасывает
+     * список и пагинацию, всё что догружено — уходит. При неудачном
      * рефетче уже показанный список остаётся.
      */
     const load = useCallback(async (): Promise<void> => {
@@ -193,12 +212,17 @@ export default function JournalScreen() {
         try {
             const response = await listSeizures({
                 timezone: deviceTimezone(),
+                page: 1,
                 ...(range ?? {}),
             });
 
             if (seq === requestSeqRef.current) {
                 setItems(response.data);
                 setLoadError(null);
+                lastPageRef.current = response.meta.current_page;
+                setHasMore(
+                    response.meta.current_page < response.meta.last_page,
+                );
             }
         } catch (error) {
             // items не трогаем; не-ApiError тоже попадает в loadError —
@@ -212,6 +236,49 @@ export default function JournalScreen() {
             }
         }
     }, []);
+
+    /**
+     * Догрузка следующей страницы по докрутке списка до конца
+     * (FlatList onEndReached): запрос ?page=N, дописывание страниц
+     * appendSeizurePage (дубли по id выкидывает). Список на экране не
+     * сбрасывается; ошибка догрузки — общий инлайн-текст, повторная
+     * попытка — следующая докрутка. Гонку со сменой фильтра гасит
+     * сравнение periodRef: страница старого периода, прилетевшая после
+     * смены фильтра, к новому списку не дописывается.
+     */
+    async function loadMore(): Promise<void> {
+        if (loadingMore || refreshing || !hasMore || items === null) {
+            return;
+        }
+
+        const nextPage = lastPageRef.current + 1;
+        const periodAtStart = periodRef.current;
+
+        setLoadingMore(true);
+
+        try {
+            const response = await listSeizures({
+                timezone: deviceTimezone(),
+                page: nextPage,
+                ...(periodToRange(periodAtStart) ?? {}),
+            });
+
+            if (periodRef.current !== periodAtStart) {
+                return;
+            }
+
+            lastPageRef.current = response.meta.current_page;
+            setHasMore(response.meta.current_page < response.meta.last_page);
+            setItems((prev) =>
+                prev === null ? prev : appendSeizurePage(prev, response.data),
+            );
+            setInlineError(null);
+        } catch (error) {
+            setInlineError(actionErrorText(error));
+        } finally {
+            setLoadingMore(false);
+        }
+    }
 
     // Один механизм на монтирование и возвраты из edit/new/settings
     // (включая системный back) — вариант A дизайн-документа.
@@ -324,6 +391,7 @@ export default function JournalScreen() {
         setPeriodError(null);
         setItems(null);
         setLoadError(null);
+        setHasMore(false);
 
         // Панель custom-диапазона сворачиваем только для пресетов: при
         // applyCustomPeriod она остаётся открытой — пользователь настраивает.
@@ -712,6 +780,22 @@ export default function JournalScreen() {
                     data={dayGroups}
                     keyExtractor={(group) => group.key}
                     contentContainerStyle={styles.listContent}
+                    onEndReached={() => {
+                        void loadMore();
+                    }}
+                    // Догрузка на пол-экрана до конца: страница успевает
+                    // загрузиться, докрутка не упирается в спиннер.
+                    onEndReachedThreshold={0.5}
+                    ListFooterComponent={
+                        loadingMore ? (
+                            <View style={styles.footer}>
+                                <ActivityIndicator
+                                    size="small"
+                                    color="#2f6fde"
+                                />
+                            </View>
+                        ) : null
+                    }
                     refreshControl={
                         <RefreshControl
                             refreshing={refreshing}
@@ -1054,6 +1138,11 @@ const styles = StyleSheet.create({
     listContent: {
         // Хвост списка не прилипает к нижней кромке при докрутке.
         paddingBottom: 24,
+    },
+    // Спиннер догрузки страницы: заметный отступ, чтобы не дрожал между
+    // группами дней.
+    footer: {
+        paddingVertical: 16,
     },
     // Горизонтальный отступ здесь, а не в listContent: фон группы тянется
     // от края до края — полосы дней читаются целиком.

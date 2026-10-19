@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
 import AppLogo from '@/components/AppLogo.vue';
+import { APP_DOWNLOAD_URL, useAppDownload } from '@/composables/useAppDownload';
 import { home } from '@/routes';
 
 defineProps<{
     title?: string;
     description?: string;
 }>();
+
+const { appVersion } = useAppDownload();
 </script>
 
 <template>
@@ -35,6 +38,13 @@ defineProps<{
                 <div class="rounded-2xl border border-border bg-card p-6">
                     <slot />
                 </div>
+                <a
+                    v-if="appVersion"
+                    :href="APP_DOWNLOAD_URL"
+                    class="text-center text-sm text-muted-foreground hover:text-foreground"
+                >
+                    Скачать приложение для Android (v{{ appVersion }})
+                </a>
             </div>
         </div>
     </div>

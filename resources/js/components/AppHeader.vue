@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { Menu } from '@lucide/vue';
+import { Menu, Smartphone } from '@lucide/vue';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
@@ -19,6 +19,7 @@ import {
     SheetTrigger,
 } from '@/components/ui/sheet';
 import UserMenuContent from '@/components/UserMenuContent.vue';
+import { APP_DOWNLOAD_URL, useAppDownload } from '@/composables/useAppDownload';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { getInitials } from '@/composables/useInitials';
 import { dashboard } from '@/routes';
@@ -37,6 +38,7 @@ const page = usePage();
 const auth = computed(() => page.props.auth);
 const appName = computed(() => page.props.name);
 const { isCurrentUrl } = useCurrentUrl();
+const { appVersion } = useAppDownload();
 
 const mainNavItems: NavItem[] = [
     { title: 'Журнал', href: dashboard() },
@@ -86,6 +88,18 @@ const mainNavItems: NavItem[] = [
                                 >
                                     {{ item.title }}
                                 </Link>
+                                <a
+                                    v-if="appVersion"
+                                    :href="APP_DOWNLOAD_URL"
+                                    :aria-label="`Скачать приложение (v${appVersion})`"
+                                    class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground hover:bg-accent"
+                                >
+                                    <Smartphone class="size-4" />
+                                    Скачать приложение
+                                    <span class="text-xs font-normal"
+                                        >v{{ appVersion }}</span
+                                    >
+                                </a>
                             </nav>
                         </SheetContent>
                     </Sheet>
@@ -113,6 +127,18 @@ const mainNavItems: NavItem[] = [
                     >
                         {{ item.title }}
                     </Link>
+                    <a
+                        v-if="appVersion"
+                        :href="APP_DOWNLOAD_URL"
+                        :aria-label="`Скачать приложение (v${appVersion})`"
+                        class="flex items-center gap-1.5 border-t-2 border-b-2 border-t-transparent border-b-transparent text-[15px] font-semibold text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                        <Smartphone class="size-4" />
+                        Скачать приложение
+                        <span class="text-xs font-normal"
+                            >v{{ appVersion }}</span
+                        >
+                    </a>
                 </nav>
 
                 <div class="ml-auto flex items-center">

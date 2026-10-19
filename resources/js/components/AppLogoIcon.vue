@@ -13,7 +13,7 @@ defineProps<Props>();
 </script>
 
 <template>
-    <!-- Глиф приложения: три горизонтальные линии (как .logo i в макете).
+    <!-- Глиф приложения: линейный график (спарклайн) с точкой на последнем значении.
          Рисуется currentColor — носитель задаёт цвет и фон-плитку. -->
     <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -21,8 +21,14 @@ defineProps<Props>();
         :class="className"
         v-bind="$attrs"
     >
-        <rect x="6" y="6.5" width="12" height="2" rx="1" fill="currentColor" />
-        <rect x="6" y="11" width="12" height="2" rx="1" fill="currentColor" />
-        <rect x="6" y="15.5" width="12" height="2" rx="1" fill="currentColor" />
+        <polyline
+            points="4,16.5 8.5,11.5 12,13.5 16,7 19.5,10"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.25"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+        />
+        <circle cx="19.5" cy="10" r="2" fill="currentColor" />
     </svg>
 </template>

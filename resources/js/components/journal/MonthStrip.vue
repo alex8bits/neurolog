@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import type { JournalSummary } from '@/types/journal';
 import { pluralizeSeizures } from '@/utils/dayGroups';
+import { computeStripLevels } from '@/utils/stripLevel';
 
 const props = defineProps<{ summary: JournalSummary }>();
 
@@ -58,6 +59,12 @@ function pluralizeDays(count: number): string {
     return 'дней';
 }
 
+const levels = computed(() => computeStripLevels(props.summary.days));
+
+const maxCount = computed(() =>
+    Math.max(0, ...props.summary.days.map((day) => day.count)),
+);
+
 const cells = computed(() =>
     props.summary.days.map((day, index, all) => {
         const { day: d, month } = parts(day.date);
@@ -69,7 +76,7 @@ const cells = computed(() =>
                 day.count === 0
                     ? `${date} — без приступов`
                     : `${date} — ${day.count} ${pluralizeSeizures(day.count)}`,
-            color: COLORS[Math.min(day.count, 3)],
+            color: COLORS[levels.value[index]],
             isLast: index === all.length - 1,
         };
     }),
@@ -126,5 +133,13 @@ const startLabel = computed(() => {
             <span>{{ startLabel }}</span>
             <span>сегодня</span>
         </div>
+
+        <p class="mt-2 text-[11px] leading-snug text-muted-foreground">
+            Чем темнее, тем больше приступов за день<template
+                v-if="maxCount > 3"
+            >
+                (до {{ maxCount }})</template
+            >
+        </p>
     </section>
 </template>

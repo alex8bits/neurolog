@@ -2,24 +2,22 @@ import { StyleSheet, View } from 'react-native';
 
 import type { SeizureSummaryDay } from '@/api/types';
 import { colors } from '@/theme/tokens';
+import { computeStripLevels } from '@/utils/stripLevel';
 
 type Props = { days: SeizureSummaryDay[] };
 
-function cellColor(count: number): string {
-    if (count <= 0) {
-        return colors.strip0;
-    }
+const LEVEL_COLORS = [
+    colors.strip0,
+    colors.strip1,
+    colors.strip2,
+    colors.strip3,
+] as const;
 
-    if (count === 1) {
-        return colors.strip1;
-    }
-
-    return count === 2 ? colors.strip2 : colors.strip3;
-}
-
-/** Тонкая лента 30 дней: клетка на день, оттенок по числу приступов,
+/** Тонкая лента 30 дней: клетка на день, оттенок по числу приступов
+ *  относительно максимума за период (computeStripLevels),
  *  последняя (сегодня) обведена. Без подписей. */
 export function MonthStrip({ days }: Props) {
+    const levels = computeStripLevels(days);
     const withSeizures = days.filter((day) => day.count > 0).length;
 
     return (
@@ -33,7 +31,7 @@ export function MonthStrip({ days }: Props) {
                     key={day.date}
                     style={[
                         styles.cell,
-                        { backgroundColor: cellColor(day.count) },
+                        { backgroundColor: LEVEL_COLORS[levels[index]] },
                         index === days.length - 1 && styles.last,
                     ]}
                 />

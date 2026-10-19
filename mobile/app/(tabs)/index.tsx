@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     FlatList,
@@ -22,6 +22,7 @@ import { PeriodPicker } from '@/components/PeriodPicker';
 import { AppText } from '@/components/ui/AppText';
 import { deviceTimezone } from '@/config/timezone';
 import { colors, fontFamily, radius, spacing } from '@/theme/tokens';
+import { maybePromptUpdate } from '@/updates/prompt';
 import { groupSeizuresByDay } from '@/utils/dayGroups';
 import {
     actionErrorText,
@@ -227,6 +228,13 @@ export default function JournalScreen() {
             void load();
         }, [load]),
     );
+
+    // Проверка обновления — раз за жизнь процесса (флаг внутри модуля),
+    // стартовый системный диалог «Скачать / Позже». Fire-and-forget: сбои
+    // внутри fail-open, загрузку журнала не блокирует.
+    useEffect(() => {
+        void maybePromptUpdate();
+    }, []);
 
     // Группы по календарным дням: пересборка только при смене items
     // (загрузка/фильтр/локальное удаление), порядок — как от сервера.

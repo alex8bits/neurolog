@@ -9,6 +9,7 @@ import {
     emailSeizuresDoctor,
     emailSeizuresSelf,
     exportSeizuresDocx,
+    fetchSummary,
     listSeizures,
     updateSeizure,
 } from '@/api/seizures';
@@ -303,5 +304,29 @@ describe('emailSeizuresDoctor', () => {
         // Сериализованное тело содержит только to: undefined-ключи
         // JSON.stringify выкидывает — на сервер пустышки не уедут.
         expect(JSON.stringify(init.body)).toBe('{"to":"doctor@example.com"}');
+    });
+});
+
+describe('fetchSummary', () => {
+    it('GET /seizures/summary c timezone/from/to и разворачивает data', async () => {
+        const summary = {
+            timezone: 'UTC',
+            today: '2026-07-10',
+            days: [],
+            period: { from: null, to: null, total: 0, days_with_seizures: 0 },
+        };
+
+        apiFetchMock.mockResolvedValueOnce({ data: summary });
+
+        const result = await fetchSummary({
+            timezone: 'Europe/Moscow',
+            from: '2026-07-01',
+            to: '2026-07-10',
+        });
+
+        expect(apiFetchMock).toHaveBeenCalledWith(
+            '/seizures/summary?timezone=Europe%2FMoscow&from=2026-07-01&to=2026-07-10',
+        );
+        expect(result).toEqual(summary);
     });
 });

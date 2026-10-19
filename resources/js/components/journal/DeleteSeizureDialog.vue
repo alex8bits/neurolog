@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Form } from '@inertiajs/vue3';
-import { ref } from 'vue';
 import SeizureController from '@/actions/App/Http/Controllers/SeizureController';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,12 +16,13 @@ import type { SeizureRow } from '@/types/journal';
 
 const props = defineProps<{ row: SeizureRow }>();
 
-const open = ref(false);
+// Управляемый (v-model:open из меню строки) либо самодостаточный (слот trigger).
+const open = defineModel<boolean>('open', { default: false });
 </script>
 
 <template>
     <Dialog v-model:open="open">
-        <DialogTrigger as-child>
+        <DialogTrigger v-if="$slots.trigger" as-child>
             <slot name="trigger" />
         </DialogTrigger>
         <DialogContent>
@@ -30,11 +30,11 @@ const open = ref(false);
                 v-bind="SeizureController.destroy.form(props.row.id)"
                 :options="{ preserveScroll: true }"
                 @success="open = false"
-                class="space-y-6"
+                class="space-y-5"
                 v-slot="{ processing }"
             >
                 <DialogHeader class="space-y-3">
-                    <DialogTitle>
+                    <DialogTitle class="text-xl font-extrabold">
                         Удалить запись от {{ props.row.date }}
                         {{ props.row.time }}?
                     </DialogTitle>
@@ -46,7 +46,7 @@ const open = ref(false);
 
                 <DialogFooter class="gap-2">
                     <DialogClose as-child>
-                        <Button variant="secondary" :disabled="processing">
+                        <Button variant="outline" :disabled="processing">
                             Отмена
                         </Button>
                     </DialogClose>

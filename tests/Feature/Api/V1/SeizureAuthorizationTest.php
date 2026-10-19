@@ -14,6 +14,7 @@ class SeizureAuthorizationTest extends TestCase
         $responses = [
             $this->postJson(route('api.v1.seizures.store')),
             $this->getJson(route('api.v1.seizures.index')),
+            $this->getJson(route('api.v1.seizures.summary')),
             $this->deleteJson(route('api.v1.seizures.destroy', ['seizure' => 1])),
         ];
 

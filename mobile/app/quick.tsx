@@ -1,17 +1,13 @@
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-    ActivityIndicator,
-    BackHandler,
-    Pressable,
-    StyleSheet,
-    Text,
-    View,
-} from 'react-native';
+import { ActivityIndicator, BackHandler, StyleSheet, View } from 'react-native';
 
 import { createSeizure } from '@/api/seizures';
 import { useAuth } from '@/auth/AuthContext';
+import { AppText } from '@/components/ui/AppText';
+import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { deviceTimezone } from '@/config/timezone';
+import { colors } from '@/theme/tokens';
 import { ApiError, userMessage } from '@/utils/errors';
 
 /** Фаза экрана вместо набора флагов: отправка либо одна из ошибочных веток. */
@@ -131,14 +127,24 @@ export default function QuickEntryScreen() {
         <View style={styles.screen}>
             {phase === 'sending' ? (
                 <View style={styles.state}>
-                    <ActivityIndicator size="large" color="#2f6fde" />
-                    <Text style={styles.hint}>Записываем…</Text>
+                    <ActivityIndicator size="large" color={colors.primary} />
+                    <AppText color="muted" style={styles.hint}>
+                        Записываем…
+                    </AppText>
                 </View>
             ) : (
                 <View style={styles.state}>
-                    <Text style={styles.error}>{message}</Text>
-                    <Pressable
-                        accessibilityRole="button"
+                    <AppText
+                        color="danger"
+                        variant="label"
+                        style={styles.error}
+                    >
+                        {message}
+                    </AppText>
+                    <PrimaryButton
+                        title={
+                            phase === 'expired' ? 'Войти снова' : 'Повторить'
+                        }
                         style={styles.submit}
                         onPress={() => {
                             if (phase === 'expired') {
@@ -147,11 +153,7 @@ export default function QuickEntryScreen() {
                                 void send();
                             }
                         }}
-                    >
-                        <Text style={styles.submitLabel}>
-                            {phase === 'expired' ? 'Войти снова' : 'Повторить'}
-                        </Text>
-                    </Pressable>
+                    />
                 </View>
             )}
         </View>
@@ -160,7 +162,7 @@ export default function QuickEntryScreen() {
 
 const styles = StyleSheet.create({
     screen: {
-        backgroundColor: '#fff',
+        backgroundColor: colors.background,
         flex: 1,
         paddingHorizontal: 24,
     },
@@ -170,27 +172,14 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     hint: {
-        color: '#333',
-        fontSize: 16,
         marginTop: 12,
         textAlign: 'center',
     },
     error: {
-        color: '#d32f2f',
-        fontSize: 14,
         marginBottom: 16,
         textAlign: 'center',
     },
     submit: {
-        alignItems: 'center',
-        backgroundColor: '#2f6fde',
-        borderRadius: 8,
         paddingHorizontal: 32,
-        paddingVertical: 12,
-    },
-    submitLabel: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
     },
 });

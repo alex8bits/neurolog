@@ -10,6 +10,9 @@ import type {
     Seizure,
     SeizureListResponse,
     SeizureResponse,
+    SeizureSummary,
+    SeizureSummaryResponse,
+    SummaryParams,
 } from '@/api/types';
 import { filenameFromContentDisposition } from '@/utils/contentDisposition';
 
@@ -42,6 +45,18 @@ export async function listSeizures(
     return apiFetch<SeizureListResponse>(
         `/seizures?per_page=${PER_PAGE}&${periodQuery(params)}${pageQuery}`,
     );
+}
+
+/** GET /seizures/summary: лента 30 дней и итоги периода (тот же periodQuery,
+ *  что у списка). */
+export async function fetchSummary(
+    params: SummaryParams,
+): Promise<SeizureSummary> {
+    const response = await apiFetch<SeizureSummaryResponse>(
+        `/seizures/summary?${periodQuery(params)}`,
+    );
+
+    return response.data;
 }
 
 export async function createSeizure(

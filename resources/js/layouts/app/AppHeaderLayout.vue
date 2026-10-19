@@ -1,7 +1,5 @@
 <script setup lang="ts">
-import AppContent from '@/components/AppContent.vue';
 import AppHeader from '@/components/AppHeader.vue';
-import AppShell from '@/components/AppShell.vue';
 import { Toaster } from '@/components/ui/sonner';
 import type { BreadcrumbItem } from '@/types';
 
@@ -15,11 +13,11 @@ withDefaults(defineProps<Props>(), {
 </script>
 
 <template>
-    <AppShell variant="header">
+    <div class="flex min-h-screen w-full flex-col">
         <AppHeader :breadcrumbs="breadcrumbs" />
-        <AppContent variant="header">
+        <main class="mx-auto flex w-full max-w-[1240px] flex-1 flex-col">
             <slot />
-        </AppContent>
+        </main>
         <Toaster />
-    </AppShell>
+    </div>
 </template>

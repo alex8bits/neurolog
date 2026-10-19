@@ -129,9 +129,9 @@ function applyPreset(key: PresetKey): void {
 </script>
 
 <template>
-    <form class="flex flex-wrap items-end gap-3" @submit.prevent="apply">
+    <form class="mb-1 space-y-3" @submit.prevent="apply">
         <div
-            class="flex w-full flex-wrap items-center gap-2"
+            class="flex w-max max-w-full flex-wrap gap-1.5 rounded-xl bg-muted p-1"
             role="group"
             aria-label="Быстрый выбор периода"
         >
@@ -140,29 +140,37 @@ function applyPreset(key: PresetKey): void {
                 :key="preset.key"
                 type="button"
                 :class="[
-                    'cursor-pointer rounded-lg px-3 py-1.5 text-sm transition-colors',
+                    'cursor-pointer rounded-[9px] px-3.5 py-[7px] text-sm font-semibold transition-colors',
                     activePreset === preset.key
-                        ? 'bg-primary text-primary-foreground'
-                        : 'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
+                        ? 'bg-card text-foreground shadow-[0_1px_2px_rgba(22,50,58,0.12)]'
+                        : 'text-muted-foreground hover:text-foreground',
                 ]"
                 :aria-pressed="activePreset === preset.key"
                 @click="applyPreset(preset.key)"
             >
                 {{ preset.label }}
             </button>
+            <span
+                v-if="activePreset === null"
+                class="rounded-[9px] bg-card px-3.5 py-[7px] text-sm font-semibold text-foreground shadow-[0_1px_2px_rgba(22,50,58,0.12)]"
+            >
+                Свой период
+            </span>
         </div>
 
-        <div class="grid gap-1.5">
-            <Label for="from">Дата начала</Label>
-            <Input id="from" v-model="from" type="date" name="from" />
-        </div>
+        <div class="flex flex-wrap items-end gap-3">
+            <div class="grid gap-1.5">
+                <Label for="from">Дата начала</Label>
+                <Input id="from" v-model="from" type="date" name="from" />
+            </div>
 
-        <div class="grid gap-1.5">
-            <Label for="to">Дата конца</Label>
-            <Input id="to" v-model="to" type="date" name="to" />
-            <InputError :message="toError" />
-        </div>
+            <div class="grid gap-1.5">
+                <Label for="to">Дата конца</Label>
+                <Input id="to" v-model="to" type="date" name="to" />
+                <InputError :message="toError" />
+            </div>
 
-        <Button type="submit">Показать</Button>
+            <Button type="submit" variant="outline">Показать</Button>
+        </div>
     </form>
 </template>

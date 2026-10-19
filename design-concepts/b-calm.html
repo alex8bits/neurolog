@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Концепция B — «Спокойный день»</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F1F6F5; --surface:#FFFFFF; --text:#16323A; --muted:#587278; --line:#D8E4E3;
+  --primary:#0F766E; --primary-soft:#D6EEEA; --sun:#F2A93B; --sun-soft:#FCEBC9;
+  --danger:#B93A2E; --ok:#2E7D4F;
+  --f:'Manrope',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#E6EEED;color:var(--text);font-family:var(--f);line-height:1.5}
+a{color:var(--primary)}
+.wrap{max-width:1240px;margin:0 auto;padding:24px 20px 80px}
+.nav{font-size:14px;display:flex;gap:16px;flex-wrap:wrap;margin-bottom:24px}
+h1.title{font-size:44px;margin:0 0 8px;letter-spacing:-.02em;font-weight:800}
+.lead{max-width:760px;font-size:18px;color:#34505a}
+h2.sec{font-size:24px;margin:56px 0 16px;font-weight:800;letter-spacing:-.01em}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+@media(max-width:860px){.grid2,.grid3{grid-template-columns:1fr}}
+.sw{display:flex;flex-wrap:wrap;gap:10px}
+.sw div{width:104px;font-size:12px}
+.sw i{display:block;height:52px;border:1px solid rgba(0,0,0,.1);border-radius:10px;margin-bottom:4px}
+.note{background:#fff;border-radius:14px;padding:16px 18px;font-size:15px}
+.note h4{margin:0 0 6px;font-size:16px}
+ul.t{margin:0;padding-left:18px}
+.pros li::marker{color:var(--ok)} .cons li::marker{color:var(--danger)}
+
+/* web */
+.browser{border-radius:14px;overflow:hidden;background:var(--bg);border:1px solid #c5d6d4}
+.bar{background:#fff;border-bottom:1px solid var(--line);padding:8px 14px;font-size:12px;color:var(--muted)}
+.top{display:flex;align-items:center;gap:28px;padding:14px 32px;background:var(--surface);border-bottom:1px solid var(--line)}
+.logo{font-weight:800;font-size:17px;display:flex;gap:10px;align-items:center}
+.logo i{width:26px;height:26px;border-radius:8px;background:var(--primary);display:inline-block;position:relative}
+.logo i:after{content:"";position:absolute;left:6px;right:6px;top:12px;height:2px;background:#fff;box-shadow:0 -5px 0 #fff,0 5px 0 #fff}
+.top a{color:var(--muted);text-decoration:none;font-weight:600;font-size:15px;padding:6px 0}
+.top a.on{color:var(--text);box-shadow:0 2px 0 var(--primary)}
+.top .sp{flex:1}
+.page{display:grid;grid-template-columns:340px 1fr;gap:28px;padding:28px 32px 40px}
+@media(max-width:900px){.page{grid-template-columns:1fr;padding:18px}.top{padding:12px 16px;gap:16px;flex-wrap:wrap}}
+.hero{background:var(--surface);border-radius:20px;padding:24px;align-self:start;position:sticky;top:12px}
+.hero small{color:var(--muted);font-weight:600;font-size:13px}
+.hero .num{font-size:64px;font-weight:800;line-height:1;margin:6px 0 2px;letter-spacing:-.03em}
+.hero .num span{font-size:20px;font-weight:700;margin-left:6px;color:var(--muted)}
+.rec{display:block;width:100%;margin:20px 0 10px;background:var(--primary);color:#fff;border:0;border-radius:16px;padding:20px;font:inherit;font-weight:800;font-size:19px;cursor:pointer}
+.rec small{display:block;color:#CFEDE9;font-weight:500;font-size:13px;margin-top:2px}
+.link2{display:block;text-align:center;font-weight:600;font-size:14px;margin-bottom:18px}
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:14px}
+.week div{text-align:center;font-size:11px;color:var(--muted);font-weight:600}
+.week b{display:block;margin:4px auto 0;width:28px;height:28px;border-radius:50%;background:var(--primary-soft);color:var(--text);line-height:28px;font-size:12px}
+.week b.has{background:var(--sun);color:#3a2800}
+.week b.today{outline:2px solid var(--text);outline-offset:2px}
+.filters{display:flex;gap:6px;background:#DDEAE8;padding:4px;border-radius:12px;width:max-content;max-width:100%;flex-wrap:wrap}
+.filters span{padding:7px 14px;border-radius:9px;font-weight:600;font-size:14px;color:var(--muted)}
+.filters .on{background:#fff;color:var(--text);box-shadow:0 1px 2px rgba(22,50,58,.12)}
+.ex{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0 22px}
+.btn{font:inherit;font-weight:700;font-size:14px;padding:9px 16px;border-radius:10px;border:1.5px solid var(--primary);background:var(--primary);color:#fff}
+.btn.out{background:transparent;color:var(--primary)}
+.btn.danger{background:transparent;color:var(--danger);border-color:var(--danger)}
+.dh{display:flex;justify-content:space-between;align-items:baseline;margin:22px 0 8px;font-weight:800}
+.dh span{font-weight:600;font-size:13px;color:var(--muted)}
+.dh .today{background:var(--sun-soft);padding:2px 10px;border-radius:8px}
+.list{background:var(--surface);border-radius:16px;overflow:hidden}
+.row{display:grid;grid-template-columns:64px 1fr auto;align-items:center;gap:14px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row time{font-weight:800;font-size:18px;font-variant-numeric:tabular-nums}
+.row p{margin:0;font-size:15px;color:#30505a}
+.row p.none{color:#8aa0a5}
+.row .dots{color:var(--muted);font-size:20px;letter-spacing:2px}
+
+/* phones */
+.phones{display:flex;gap:28px;flex-wrap:wrap;justify-content:center}
+.phone{width:340px;height:700px;border:10px solid #C3D4D2;border-radius:34px;background:var(--bg);overflow:hidden;position:relative;display:flex;flex-direction:column}
+.phone .sb{height:28px;font-size:11px;color:var(--muted);display:flex;justify-content:space-between;padding:8px 18px 0}
+.ph-pad{padding:0 16px}
+.ph-h{display:flex;justify-content:space-between;align-items:center;padding:8px 16px}
+.ph-h h4{margin:0;font-size:22px;font-weight:800}
+.avatar{width:34px;height:34px;border-radius:50%;background:var(--primary-soft);color:var(--primary);display:grid;place-items:center;font-weight:800;font-size:14px}
+.ph-hero{background:var(--surface);border-radius:20px;padding:16px 18px;margin:6px 16px 10px}
+.ph-hero .num{font-size:44px;font-weight:800;line-height:1}
+.ph-hero .num span{font-size:16px;color:var(--muted);margin-left:4px}
+.ph-hero small{font-size:12px;color:var(--muted);font-weight:600}
+.ph-rec{margin:0 16px 8px;background:var(--primary);color:#fff;border-radius:16px;padding:16px;text-align:center;font-weight:800;font-size:18px}
+.ph-list{flex:1;overflow:hidden;padding:0 16px}
+.ph-list .filters{margin:4px 0 6px;font-size:13px}
+.ph-list .filters span{padding:5px 10px;font-size:13px}
+.ph-list .dh{margin:10px 0 6px;font-size:14px}
+.ph-list .row{padding:11px 14px;grid-template-columns:52px 1fr auto}
+.ph-list .row time{font-size:16px}
+.ph-list .row p{font-size:14px}
+.tabbar{background:#fff;border-top:1px solid var(--line);display:flex;justify-content:space-around;padding:8px 0 14px;font-size:11px;font-weight:700;color:var(--muted)}
+.tabbar span{text-align:center}.tabbar .on{color:var(--primary)}
+.tabbar i{display:block;width:22px;height:22px;border-radius:7px;background:#DDEAE8;margin:0 auto 2px}.tabbar .on i{background:var(--primary)}
+.sheet{margin-top:auto;background:#fff;border-radius:24px 24px 0 0;padding:18px 18px 20px;box-shadow:0 -8px 24px rgba(22,50,58,.10)}
+.sheet h4{margin:0 0 12px;font-size:20px;font-weight:800}
+.seg{display:flex;background:#DDEAE8;border-radius:12px;padding:4px;margin-bottom:14px}
+.seg div{flex:1;text-align:center;padding:9px;border-radius:9px;font-weight:700;font-size:14px;color:var(--muted)}
+.seg .on{background:#fff;color:var(--text);box-shadow:0 1px 2px rgba(22,50,58,.12)}
+.fld{border:1.5px solid var(--line);border-radius:12px;padding:10px 14px;margin-bottom:10px;background:#fff}
+.fld label{display:block;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.fld div{font-size:16px;font-weight:600;margin-top:2px}
+.ghost{color:var(--muted)}
+.comps{display:flex;flex-wrap:wrap;gap:14px;align-items:center;background:#fff;padding:20px;border-radius:14px}
+.comps input{font:inherit;border:1.5px solid var(--line);padding:10px 14px;border-radius:12px;width:220px;background:#fff}
+.comps input:focus{outline:3px solid var(--primary-soft);border-color:var(--primary)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="nav"><a href="index.html">← Сравнение концепций</a><a href="a-diary.html">A — «Дневник»</a><a href="c-chronicle.html">C — «Хроника»</a></div>
+
+<h1 class="title">B — «Спокойный день»</h1>
+<p class="lead">Продукт — это тихий помощник, а не таблица. Главное действие — «записать приступ» — всегда под рукой и самое заметное на экране; журнал вторичен, он аккуратно собран ниже. Мягкая светлая зелёно-бирюзовая гамма, много воздуха, один тёплый акцент.</p>
+
+<h2 class="sec">Впечатление и идея</h2>
+<div class="grid3">
+  <div class="note"><h4>Что чувствует пользователь</h4>Безопасность и ясность. Если человек открывает приложение в тревожный момент, он сразу видит одну большую кнопку и не ищет «+» в углу.</div>
+  <div class="note"><h4>Главная композиция</h4>Сверху — «паспорт состояния»: сколько дней без записей, неделя точками, и кнопка «Записать приступ». Ниже — сгруппированный по дням список в белых «листах». Экспорт уходит во вторичное меню.</div>
+  <div class="note"><h4>Характер</h4>Современная «wellness»-эстетика без излишеств: один шрифт, один основной цвет, тёплое жёлто-оранжевое пятно только там, где есть события.</div>
+</div>
+<p class="note" style="margin-top:16px;font-size:14px"><b>Важно:</b> «дней без записей» и «неделя точками» — новые вычисляемые блоки, но они считаются из тех же записей API без новых данных. Если такой акцент нежелателен (счётчик «дней без приступов» может быть эмоционально тяжёлым), блок убирается, остальная концепция сохраняется.</p>
+
+<h2 class="sec">Палитра и типографика</h2>
+<div class="grid2">
+<div>
+  <div class="sw">
+    <div><i style="background:#F1F6F5"></i>#F1F6F5 фон</div>
+    <div><i style="background:#FFFFFF"></i>#FFFFFF листы</div>
+    <div><i style="background:#16323A"></i>#16323A текст</div>
+    <div><i style="background:#587278"></i>#587278 приглушённый</div>
+    <div><i style="background:#D8E4E3"></i>#D8E4E3 линии</div>
+    <div><i style="background:#0F766E"></i>#0F766E основной</div>
+    <div><i style="background:#D6EEEA"></i>#D6EEEA основной мягкий</div>
+    <div><i style="background:#F2A93B"></i>#F2A93B акцент «событие»</div>
+    <div><i style="background:#FCEBC9"></i>#FCEBC9 акцент мягкий</div>
+    <div><i style="background:#B93A2E"></i>#B93A2E ошибка / удаление</div>
+  </div>
+  <p style="font-size:14px;color:var(--muted)">Фон всегда светлее текста; текст/фон ≈ 12:1, основной/белый ≈ 5.5:1. Тёмной темы нет.</p>
+</div>
+<div class="note">
+  <div style="font-size:34px;font-weight:800;letter-spacing:-.02em;line-height:1.1">Журнал приступов</div>
+  <div style="font-size:64px;font-weight:800;letter-spacing:-.03em;line-height:1.1">12<span style="font-size:20px;color:var(--muted)"> дней</span></div>
+  <div style="margin-top:6px">Один гарнитур — Manrope (кириллица, 400–800). Иерархия — вес и размер: крупные числа, жирное время, обычный комментарий.</div>
+</div>
+</div>
+
+<h2 class="sec">Веб-версия (десктоп)</h2>
+<div class="browser">
+ <div class="bar">seizure.godnocode.ru / журнал</div>
+ <div class="top"><div class="logo"><i></i>График приступов</div><a class="on" href="#">Журнал</a><a href="#">Обратная связь</a><span class="sp"></span><a href="#">Алексей ▾</a></div>
+ <div class="page">
+  <aside class="hero">
+    <small>Последняя запись</small>
+    <div class="num">2<span>дня назад</span></div>
+    <small>17 октября, 03:40</small>
+    <button class="rec">Записать приступ<small>время фиксируется «сейчас»</small></button>
+    <a class="link2" href="#">Указать другое время</a>
+    <small>Эта неделя</small>
+    <div class="week">
+      <div>пн<b>13</b></div><div>вт<b class="has">14</b></div><div>ср<b>15</b></div><div>чт<b>16</b></div><div>пт<b class="has">17</b></div><div>сб<b>18</b></div><div>вс<b class="has today">19</b></div>
+    </div>
+  </aside>
+  <section>
+    <div class="filters"><span>Сегодня</span><span class="on">7 дней</span><span>30 дней</span><span>Всё время</span><span>Свой период</span></div>
+    <div class="ex"><button class="btn out">Сохранить DOCX</button><button class="btn out">Печать</button><button class="btn out">Отправить себе</button><button class="btn">Отправить доктору</button></div>
+
+    <div class="dh"><b class="today">Сегодня, 19 октября</b><span>2 приступа</span></div>
+    <div class="list">
+      <div class="row"><time>14:25</time><p>После длительной работы за компьютером, около двух минут</p><span class="dots">···</span></div>
+      <div class="row"><time>08:10</time><p class="none">без комментария</p><span class="dots">···</span></div>
+    </div>
+    <div class="dh"><b>17 октября, пятница</b><span>1 приступ</span></div>
+    <div class="list">
+      <div class="row"><time>03:40</time><p>Ночью, проснулся от ощущения. Принял лекарство, уснул.</p><span class="dots">···</span></div>
+    </div>
+    <div class="dh"><b>14 октября, вторник</b><span>3 приступа</span></div>
+    <div class="list">
+      <div class="row"><time>22:05</time><p>Усталость, мало спал накануне</p><span class="dots">···</span></div>
+      <div class="row"><time>16:30</time><p class="none">без комментария</p><span class="dots">···</span></div>
+      <div class="row"><time>09:15</time><p>Короткий, меньше минуты</p><span class="dots">···</span></div>
+    </div>
+  </section>
+ </div>
+</div>
+<p style="font-size:14px;color:var(--muted)">«···» — меню строки (Править / Удалить), одна иконка вместо двух. Левая панель закрепляется при прокрутке, поэтому «Записать» всегда рядом.</p>
+
+<h2 class="sec">Мобильное приложение</h2>
+<div class="phones">
+  <div class="phone"><div class="sb"><span>9:41</span><span>●●●</span></div>
+    <div class="ph-h"><h4>Здравствуйте</h4><div class="avatar">А</div></div>
+    <div class="ph-hero"><small>Последняя запись</small><div class="num">2<span>дня назад</span></div></div>
+    <div class="ph-rec">Записать приступ</div>
+    <div class="ph-list">
+      <div class="filters"><span>Сегодня</span><span class="on">7 дней</span><span>30</span><span>Всё</span></div>
+      <div class="dh"><b>Сегодня</b><span>2</span></div>
+      <div class="list"><div class="row"><time>14:25</time><p>После работы за компьютером</p><span class="dots">···</span></div><div class="row"><time>08:10</time><p class="none">без комментария</p><span class="dots">···</span></div></div>
+      <div class="dh"><b>17 октября</b><span>1</span></div>
+      <div class="list"><div class="row"><time>03:40</time><p>Ночью, проснулся от ощущения</p><span class="dots">···</span></div></div>
+    </div>
+    <div class="tabbar"><span class="on"><i></i>Журнал</span><span><i></i>Отчёт</span><span><i></i>Профиль</span></div>
+  </div>
+
+  <div class="phone"><div class="sb"><span>9:41</span><span>●●●</span></div>
+    <div style="flex:1;background:rgba(22,50,58,.18)"></div>
+    <div class="sheet">
+      <h4>Новая запись</h4>
+      <div class="seg"><div class="on">Сейчас</div><div>Точное время</div></div>
+      <div class="fld"><label>Время</label><div>19 октября · 14:25</div></div>
+      <div class="fld"><label>Комментарий</label><div class="ghost" style="font-weight:500">Что было до, как долго…</div></div>
+      <button class="btn" style="width:100%;padding:15px;font-size:16px;border-radius:14px;margin-top:6px">Сохранить</button>
+    </div>
+  </div>
+
+  <div class="phone"><div class="sb"><span>9:41</span><span>●●●</span></div>
+    <div style="padding:48px 20px 0">
+      <div class="logo" style="margin-bottom:6px"><i></i>График приступов</div>
+      <h4 style="margin:18px 0 4px;font-size:26px;font-weight:800">Вход</h4>
+      <p class="ghost" style="margin:0 0 18px;font-size:14px">Ваш журнал хранится на сервере и доступен с любого устройства.</p>
+      <div class="fld"><label>Электронная почта</label><div>alex@example.com</div></div>
+      <div class="fld"><label>Пароль</label><div>••••••••</div></div>
+      <button class="btn" style="width:100%;padding:15px;font-size:16px;border-radius:14px;margin-top:6px">Войти</button>
+      <div style="text-align:center;font-size:14px;margin-top:14px"><a href="#">Забыли пароль?</a> · <a href="#">Регистрация</a></div>
+    </div>
+  </div>
+</div>
+
+<h2 class="sec">Компоненты</h2>
+<div class="comps">
+  <button class="btn">Сохранить</button><button class="btn out">Отмена</button><button class="btn danger">Удалить</button>
+  <input placeholder="Поле ввода (нажмите)"><div class="filters"><span class="on">7 дней</span><span>30 дней</span></div>
+</div>
+<div class="grid3" style="margin-top:14px;font-size:14px">
+  <div class="note"><h4>Кнопки</h4>Радиус 10–16 px, главная «Записать» — крупная (60 px высотой), остальные компактные. Основной цвет — бирюзовый.</div>
+  <div class="note"><h4>Карточки и поля</h4>Белые «листы» только для групп записей (одна на день), не для каждой строки. Поля с рамкой 1.5 px и подписью-ярлыком внутри.</div>
+  <div class="note"><h4>Иконки и иллюстрации</h4>Линейные, 1.75 px, с подписями в нижней панели. Иллюстрация одна — спокойное пустое состояние.</div>
+  <div class="note"><h4>Тени, скругления, анимации</h4>Тень только у нижней «шторки» и активного переключателя. Радиусы 10 / 16 / 24 по уровню. Анимации: шторка выезжает, точка недели «вспыхивает» при записи.</div>
+  <div class="note"><h4>Свободное пространство</h4>Воздух вокруг главного действия; плотность списка умеренная — 56–64 px на запись.</div>
+  <div class="note"><h4>Адаптив</h4>Десктоп: закреплённая левая панель + список. Телефон: панель сворачивается в верхний блок, «Новая запись» — нижняя шторка вместо отдельного экрана.</div>
+</div>
+
+<h2 class="sec">Плюсы и минусы</h2>
+<div class="grid2">
+<div class="note pros"><h4>Сильные стороны</h4><ul class="t pros"><li>Лучшая эргономика главного действия — «записать» за одно касание</li><li>Выглядит современно и привычно, не пугает</li><li>Хороший обзор недели без графиков</li></ul></div>
+<div class="note cons"><h4>Возможные недостатки</h4><ul class="t cons"><li>Ближе всего к «типичному wellness-приложению» — меньше оригинальности</li><li>Блок «дней без приступов» нужно согласовать по тону</li><li>Больше всего новой вёрстки: панель, неделя, шторка</li></ul></div>
+</div>
+</div>
+</body></html>

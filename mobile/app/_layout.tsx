@@ -1,4 +1,12 @@
 import {
+    Manrope_400Regular,
+    Manrope_500Medium,
+    Manrope_600SemiBold,
+    Manrope_700Bold,
+    Manrope_800ExtraBold,
+    useFonts,
+} from '@expo-google-fonts/manrope';
+import {
     Stack,
     useGlobalSearchParams,
     useRouter,
@@ -57,6 +65,19 @@ function AppGuard({ children }: { children: ReactNode }) {
 }
 
 export default function RootLayout() {
+    const [fontsLoaded, fontError] = useFonts({
+        Manrope_400Regular,
+        Manrope_500Medium,
+        Manrope_600SemiBold,
+        Manrope_700Bold,
+        Manrope_800ExtraBold,
+    });
+
+    // Ждём шрифты; при ошибке загрузки приложение не блокируем.
+    if (!fontsLoaded && !fontError) {
+        return null;
+    }
+
     return (
         <AuthProvider>
             <AppGuard>
@@ -68,7 +89,7 @@ export default function RootLayout() {
                         options={{ gestureEnabled: false }}
                     />
                 </Stack>
-                <StatusBar style="auto" />
+                <StatusBar style="dark" />
             </AppGuard>
         </AuthProvider>
     );

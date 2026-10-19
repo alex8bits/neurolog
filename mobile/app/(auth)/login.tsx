@@ -1,8 +1,12 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { useAuth } from '@/auth/AuthContext';
+import { AppText } from '@/components/ui/AppText';
+import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { TextField } from '@/components/ui/TextField';
+import { colors, spacing } from '@/theme/tokens';
 import { ApiError, userMessage } from '@/utils/errors';
 
 /**
@@ -108,79 +112,66 @@ export default function LoginScreen() {
 
     return (
         <View style={styles.screen}>
-            <Text style={styles.title}>Вход</Text>
+            <AppText variant="title" style={styles.title}>
+                Вход
+            </AppText>
 
-            <View style={styles.field}>
-                <TextInput
-                    style={[
-                        styles.input,
-                        fieldErrors.email && styles.inputInvalid,
-                    ]}
-                    value={email}
-                    onChangeText={(value) => {
-                        setEmail(value);
-                        clearError('email');
-                    }}
-                    placeholder="Email"
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    autoComplete="email"
-                />
-                {fieldErrors.email ? (
-                    <Text style={styles.fieldError}>
-                        {fieldErrors.email.join(' ')}
-                    </Text>
-                ) : null}
-            </View>
+            <TextField
+                label="Email"
+                value={email}
+                onChangeText={(value) => {
+                    setEmail(value);
+                    clearError('email');
+                }}
+                error={fieldErrors.email?.join(' ')}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete="email"
+            />
 
-            <View style={styles.field}>
-                <TextInput
-                    style={[
-                        styles.input,
-                        fieldErrors.password && styles.inputInvalid,
-                    ]}
-                    value={password}
-                    onChangeText={(value) => {
-                        setPassword(value);
-                        clearError('password');
-                    }}
-                    placeholder="Пароль"
-                    secureTextEntry
-                    autoCapitalize="none"
-                    autoComplete="password"
-                />
-                {fieldErrors.password ? (
-                    <Text style={styles.fieldError}>
-                        {fieldErrors.password.join(' ')}
-                    </Text>
-                ) : null}
-            </View>
+            <TextField
+                label="Пароль"
+                value={password}
+                onChangeText={(value) => {
+                    setPassword(value);
+                    clearError('password');
+                }}
+                error={fieldErrors.password?.join(' ')}
+                secureTextEntry
+                autoCapitalize="none"
+                autoComplete="password"
+            />
 
             {formError ? (
-                <Text style={styles.formError}>{formError}</Text>
+                <AppText
+                    variant="label"
+                    color="danger"
+                    style={styles.formError}
+                >
+                    {formError}
+                </AppText>
             ) : null}
 
-            <Pressable
-                accessibilityRole="button"
-                accessibilityState={{ disabled: submitting }}
-                style={[styles.submit, submitting && styles.submitDisabled]}
+            <PrimaryButton
+                title={submitting ? 'Входим…' : 'Войти'}
                 disabled={submitting}
                 onPress={onSubmit}
-            >
-                <Text style={styles.submitLabel}>
-                    {submitting ? 'Входим…' : 'Войти'}
-                </Text>
-            </Pressable>
+                style={styles.submit}
+            />
 
             <Pressable
                 accessibilityRole="link"
                 style={styles.link}
                 onPress={goToRegister}
             >
-                <Text style={styles.linkLabel}>
+                <AppText
+                    variant="label"
+                    color="primary"
+                    style={styles.linkLabel}
+                >
                     Нет аккаунта? Зарегистрируйтесь
-                </Text>
+                </AppText>
             </Pressable>
         </View>
     );
@@ -188,64 +179,26 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
     screen: {
-        backgroundColor: '#fff',
+        backgroundColor: colors.surface,
         flex: 1,
         justifyContent: 'center',
-        paddingHorizontal: 24,
+        paddingHorizontal: spacing.xxl,
     },
     title: {
-        color: '#000',
-        fontSize: 24,
-        fontWeight: '600',
-        marginBottom: 24,
+        marginBottom: spacing.xxl,
         textAlign: 'center',
     },
-    field: {
-        marginBottom: 16,
-    },
-    input: {
-        borderColor: '#ccc',
-        borderRadius: 8,
-        borderWidth: 1,
-        fontSize: 16,
-        paddingHorizontal: 12,
-        paddingVertical: 10,
-    },
-    inputInvalid: {
-        borderColor: '#d32f2f',
-    },
-    fieldError: {
-        color: '#d32f2f',
-        fontSize: 13,
-        marginTop: 4,
-    },
     formError: {
-        color: '#d32f2f',
-        fontSize: 14,
-        marginBottom: 12,
+        marginBottom: spacing.md,
         textAlign: 'center',
     },
     submit: {
-        alignItems: 'center',
-        backgroundColor: '#2f6fde',
-        borderRadius: 8,
-        marginTop: 8,
-        paddingVertical: 12,
-    },
-    submitDisabled: {
-        opacity: 0.6,
-    },
-    submitLabel: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
+        marginTop: spacing.sm,
     },
     link: {
-        marginTop: 16,
+        marginTop: spacing.lg,
     },
     linkLabel: {
-        color: '#2f6fde',
-        fontSize: 15,
         textAlign: 'center',
     },
 });

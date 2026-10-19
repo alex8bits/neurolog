@@ -1,18 +1,14 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import {
-    Alert,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
-} from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { sendFeedback } from '@/api/feedback';
 import { fetchProfile } from '@/api/profile';
+import { AppText } from '@/components/ui/AppText';
+import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { TextField } from '@/components/ui/TextField';
+import { colors, radius, spacing } from '@/theme/tokens';
 import { ApiError, userMessage } from '@/utils/errors';
 
 const GENERIC_ERROR_TEXT = 'Сервер недоступен, попробуйте позже.';
@@ -107,10 +103,12 @@ export default function FeedbackScreen() {
                     ]}
                 >
                     {anonymous ? (
-                        <Text style={styles.checkboxMark}>✓</Text>
+                        <AppText variant="label" color="white">
+                            ✓
+                        </AppText>
                     ) : null}
                 </View>
-                <Text style={styles.checkboxLabel}>Анонимное обращение</Text>
+                <AppText variant="body">Анонимное обращение</AppText>
             </Pressable>
         );
     }
@@ -182,113 +180,84 @@ export default function FeedbackScreen() {
                 contentContainerStyle={[
                     styles.content,
                     {
-                        paddingTop: insets.top + 16,
-                        paddingBottom: insets.bottom + 16,
+                        paddingTop: insets.top + spacing.lg,
+                        paddingBottom: insets.bottom + spacing.lg,
                     },
                 ]}
                 keyboardShouldPersistTaps="handled"
             >
-                <View style={styles.field}>
-                    <Text style={styles.label}>Имя</Text>
-                    <TextInput
-                        style={[
-                            styles.input,
-                            !anonymous &&
-                                fieldErrors.name &&
-                                styles.inputInvalid,
-                            anonymous && styles.inputDisabled,
-                        ]}
-                        value={name}
-                        onChangeText={(value) => {
-                            setName(value);
-                            clearError('name');
-                        }}
-                        accessibilityLabel="Имя"
-                        editable={!anonymous}
-                        maxLength={NAME_MAX_LENGTH}
-                    />
-                    {!anonymous && fieldErrors.name ? (
-                        <Text style={styles.fieldError}>
-                            {fieldErrors.name.join(' ')}
-                        </Text>
-                    ) : null}
-                </View>
+                <TextField
+                    label="Имя"
+                    value={name}
+                    onChangeText={(value) => {
+                        setName(value);
+                        clearError('name');
+                    }}
+                    error={!anonymous ? fieldErrors.name?.join(' ') : null}
+                    accessibilityLabel="Имя"
+                    editable={!anonymous}
+                    maxLength={NAME_MAX_LENGTH}
+                    containerStyle={anonymous ? styles.disabled : undefined}
+                />
 
-                <View style={styles.field}>
-                    <Text style={styles.label}>Почта</Text>
-                    <TextInput
-                        style={[
-                            styles.input,
-                            !anonymous &&
-                                fieldErrors.email &&
-                                styles.inputInvalid,
-                            anonymous && styles.inputDisabled,
-                        ]}
-                        value={email}
-                        onChangeText={(value) => {
-                            setEmail(value);
-                            clearError('email');
-                        }}
-                        accessibilityLabel="Почта"
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                        editable={!anonymous}
-                        maxLength={EMAIL_MAX_LENGTH}
-                    />
-                    {!anonymous && fieldErrors.email ? (
-                        <Text style={styles.fieldError}>
-                            {fieldErrors.email.join(' ')}
-                        </Text>
-                    ) : null}
-                </View>
+                <TextField
+                    label="Почта"
+                    value={email}
+                    onChangeText={(value) => {
+                        setEmail(value);
+                        clearError('email');
+                    }}
+                    error={!anonymous ? fieldErrors.email?.join(' ') : null}
+                    accessibilityLabel="Почта"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    editable={!anonymous}
+                    maxLength={EMAIL_MAX_LENGTH}
+                    containerStyle={anonymous ? styles.disabled : undefined}
+                />
 
                 {renderAnonymousToggle()}
-                <Text style={styles.checkboxHint}>
+                <AppText
+                    variant="label"
+                    color="muted"
+                    style={styles.checkboxHint}
+                >
                     С флагом отправляется только текст обращения — без имени и
                     почты.
-                </Text>
+                </AppText>
 
-                <View style={styles.field}>
-                    <Text style={styles.label}>Текст обращения</Text>
-                    <TextInput
-                        style={[
-                            styles.input,
-                            styles.messageInput,
-                            fieldErrors.message && styles.inputInvalid,
-                        ]}
-                        value={message}
-                        onChangeText={(value) => {
-                            setMessage(value);
-                            clearError('message');
-                        }}
-                        accessibilityLabel="Текст обращения"
-                        multiline
-                        maxLength={MESSAGE_MAX_LENGTH}
-                        textAlignVertical="top"
-                    />
-                    {fieldErrors.message ? (
-                        <Text style={styles.fieldError}>
-                            {fieldErrors.message.join(' ')}
-                        </Text>
-                    ) : null}
-                </View>
+                <TextField
+                    label="Текст обращения"
+                    value={message}
+                    onChangeText={(value) => {
+                        setMessage(value);
+                        clearError('message');
+                    }}
+                    error={fieldErrors.message?.join(' ')}
+                    style={styles.messageInput}
+                    accessibilityLabel="Текст обращения"
+                    multiline
+                    maxLength={MESSAGE_MAX_LENGTH}
+                    textAlignVertical="top"
+                />
 
                 {formError ? (
-                    <Text style={styles.formError}>{formError}</Text>
+                    <AppText
+                        variant="label"
+                        color="danger"
+                        style={styles.formError}
+                    >
+                        {formError}
+                    </AppText>
                 ) : null}
 
-                <Pressable
-                    accessibilityRole="button"
-                    accessibilityState={{ disabled: submitting }}
-                    style={[styles.submit, submitting && styles.actionDisabled]}
+                <PrimaryButton
+                    title={submitting ? 'Отправляем…' : 'Отправить'}
                     disabled={submitting}
                     onPress={onSubmit}
-                >
-                    <Text style={styles.submitLabel}>
-                        {submitting ? 'Отправляем…' : 'Отправить'}
-                    </Text>
-                </Pressable>
+                    style={styles.submit}
+                />
             </ScrollView>
         </View>
     );
@@ -296,93 +265,45 @@ export default function FeedbackScreen() {
 
 const styles = StyleSheet.create({
     screen: {
-        backgroundColor: '#fff',
+        backgroundColor: colors.surface,
         flex: 1,
     },
     content: {
-        paddingHorizontal: 24,
+        paddingHorizontal: spacing.xxl,
     },
-    field: {
-        marginBottom: 16,
-    },
-    label: {
-        color: '#333',
-        fontSize: 15,
-        marginBottom: 6,
-    },
-    input: {
-        borderColor: '#ccc',
-        borderRadius: 8,
-        borderWidth: 1,
-        fontSize: 16,
-        paddingHorizontal: 12,
-        paddingVertical: 10,
-    },
-    inputInvalid: {
-        borderColor: '#d32f2f',
-    },
-    inputDisabled: {
+    disabled: {
         opacity: 0.5,
     },
     messageInput: {
         minHeight: 120,
     },
-    fieldError: {
-        color: '#d32f2f',
-        fontSize: 13,
-        marginTop: 4,
-    },
     checkboxRow: {
         alignItems: 'center',
         flexDirection: 'row',
-        gap: 10,
-        marginBottom: 4,
+        gap: spacing.md - 2,
+        marginBottom: spacing.xs,
     },
     checkboxBox: {
         alignItems: 'center',
-        borderColor: '#2f6fde',
-        borderRadius: 4,
-        borderWidth: 1,
+        borderColor: colors.primary,
+        borderRadius: radius.cell - 1,
+        borderWidth: 1.5,
         height: 22,
         justifyContent: 'center',
         width: 22,
     },
     checkboxBoxChecked: {
-        backgroundColor: '#2f6fde',
-    },
-    checkboxMark: {
-        color: '#fff',
-        fontSize: 14,
-        fontWeight: '600',
-    },
-    checkboxLabel: {
-        color: '#000',
-        fontSize: 16,
+        backgroundColor: colors.primary,
     },
     checkboxHint: {
-        color: '#666',
-        fontSize: 14,
-        marginBottom: 16,
-        marginTop: 4,
+        marginBottom: spacing.lg,
+        marginTop: spacing.xs,
     },
     formError: {
-        color: '#d32f2f',
-        fontSize: 14,
-        marginBottom: 12,
+        marginBottom: spacing.md,
         textAlign: 'center',
     },
-    actionDisabled: {
-        opacity: 0.6,
-    },
     submit: {
-        alignItems: 'center',
-        backgroundColor: '#2f6fde',
-        borderRadius: 8,
-        paddingVertical: 12,
-    },
-    submitLabel: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
+        marginTop: spacing.xs,
     },
 });

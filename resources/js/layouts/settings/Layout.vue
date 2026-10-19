@@ -1,11 +1,8 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
 import Heading from '@/components/Heading.vue';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { toUrl } from '@/lib/utils';
-import { edit as editAppearance } from '@/routes/appearance';
 import { edit as editProfile } from '@/routes/profile';
 import { edit as editSecurity } from '@/routes/security';
 import type { NavItem } from '@/types';
@@ -19,10 +16,6 @@ const sidebarNavItems: NavItem[] = [
         title: 'Безопасность',
         href: editSecurity(),
     },
-    {
-        title: 'Внешний вид',
-        href: editAppearance(),
-    },
 ];
 
 const { isCurrentOrParentUrl } = useCurrentUrl();
@@ -35,33 +28,30 @@ const { isCurrentOrParentUrl } = useCurrentUrl();
             description="Управление профилем и настройками аккаунта"
         />
 
-        <div class="flex flex-col lg:flex-row lg:space-x-12">
+        <div class="flex flex-col lg:flex-row lg:gap-12">
             <aside class="w-full max-w-xl lg:w-48">
+                <!-- Мобильная ширина: горизонтальные табы; от lg — вертикальное меню. -->
                 <nav
-                    class="flex flex-col space-y-1 space-x-0"
+                    class="flex flex-row gap-6 border-b border-border lg:flex-col lg:gap-1 lg:border-b-0"
                     aria-label="Настройки"
                 >
-                    <Button
+                    <Link
                         v-for="item in sidebarNavItems"
                         :key="toUrl(item.href)"
-                        variant="ghost"
-                        :class="[
-                            'w-full justify-start',
-                            { 'bg-muted': isCurrentOrParentUrl(item.href) },
-                        ]"
-                        as-child
+                        :href="item.href"
+                        class="-mb-px border-b-2 py-2 text-[15px] font-semibold transition-colors lg:mb-0 lg:border-b-0 lg:border-l-2 lg:py-1.5 lg:pl-3"
+                        :class="
+                            isCurrentOrParentUrl(item.href)
+                                ? 'border-primary text-foreground'
+                                : 'border-transparent text-muted-foreground hover:text-foreground'
+                        "
                     >
-                        <Link :href="item.href">
-                            <component :is="item.icon" class="h-4 w-4" />
-                            {{ item.title }}
-                        </Link>
-                    </Button>
+                        {{ item.title }}
+                    </Link>
                 </nav>
             </aside>
 
-            <Separator class="my-6 lg:hidden" />
-
-            <div class="flex-1 md:max-w-2xl">
+            <div class="mt-6 flex-1 md:max-w-2xl lg:mt-0">
                 <section class="max-w-xl space-y-12">
                     <slot />
                 </section>

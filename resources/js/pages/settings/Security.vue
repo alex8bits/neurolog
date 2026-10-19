@@ -55,7 +55,6 @@ defineOptions({
                 <PasswordInput
                     id="current_password"
                     name="current_password"
-                    class="mt-1 block w-full"
                     autocomplete="current-password"
                     placeholder="Текущий пароль"
                 />
@@ -67,7 +66,6 @@ defineOptions({
                 <PasswordInput
                     id="password"
                     name="password"
-                    class="mt-1 block w-full"
                     autocomplete="new-password"
                     placeholder="Новый пароль"
                     :passwordrules="passwordRules"
@@ -80,7 +78,6 @@ defineOptions({
                 <PasswordInput
                     id="password_confirmation"
                     name="password_confirmation"
-                    class="mt-1 block w-full"
                     autocomplete="new-password"
                     placeholder="Повторите пароль"
                     :passwordrules="passwordRules"
@@ -90,6 +87,7 @@ defineOptions({
 
             <div class="flex items-center gap-4">
                 <Button
+                    size="lg"
                     :disabled="processing"
                     data-test="update-password-button"
                 >

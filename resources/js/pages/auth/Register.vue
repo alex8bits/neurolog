@@ -107,7 +107,8 @@ defineOptions({
 
             <Button
                 type="submit"
-                class="mt-2 w-full"
+                size="lg"
+                class="w-full"
                 tabindex="5"
                 :disabled="processing"
                 data-test="register-user-button"

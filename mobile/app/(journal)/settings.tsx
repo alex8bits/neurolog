@@ -6,8 +6,6 @@ import {
     ScrollView,
     SectionList,
     StyleSheet,
-    Text,
-    TextInput,
     View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,6 +18,12 @@ import {
 } from '@/api/profile';
 import type { TimezoneGroup, UserProfile } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
+import { AppText } from '@/components/ui/AppText';
+import { DangerButton } from '@/components/ui/DangerButton';
+import { OutlineButton } from '@/components/ui/OutlineButton';
+import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { TextField } from '@/components/ui/TextField';
+import { colors, radius, spacing } from '@/theme/tokens';
 import { ApiError, userMessage } from '@/utils/errors';
 
 /** Серверные лимиты правки профиля (ProfileUpdateRequest): name и
@@ -446,22 +450,28 @@ export default function SettingsScreen() {
         <View style={styles.screen}>
             {profile === null && loadError === null ? (
                 <View style={styles.state}>
-                    <Text style={styles.stateHint}>Загрузка…</Text>
+                    <AppText variant="body" color="muted">
+                        Загрузка…
+                    </AppText>
                 </View>
             ) : null}
 
             {profile === null && loadError !== null ? (
                 <View style={styles.state}>
-                    <Text style={styles.stateError}>{loadError}</Text>
-                    <Pressable
-                        accessibilityRole="button"
+                    <AppText
+                        variant="label"
+                        color="danger"
+                        style={styles.stateError}
+                    >
+                        {loadError}
+                    </AppText>
+                    <PrimaryButton
+                        title="Повторить"
                         style={styles.retry}
                         onPress={() => {
                             setReloadSeq((seq) => seq + 1);
                         }}
-                    >
-                        <Text style={styles.retryLabel}>Повторить</Text>
-                    </Pressable>
+                    />
                 </View>
             ) : null}
 
@@ -471,364 +481,327 @@ export default function SettingsScreen() {
                     keyboardShouldPersistTaps="handled"
                 >
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Профиль</Text>
+                        <AppText
+                            variant="caption"
+                            color="muted"
+                            style={styles.sectionTitle}
+                        >
+                            Профиль
+                        </AppText>
 
-                        <View style={styles.field}>
-                            <Text style={styles.label}>Имя</Text>
-                            <TextInput
-                                style={[
-                                    styles.input,
-                                    fieldErrors.name && styles.inputInvalid,
-                                ]}
-                                value={name}
-                                onChangeText={(value) => {
-                                    setName(value);
-                                    clearError('name');
-                                }}
-                                accessibilityLabel="Имя"
-                                maxLength={NAME_MAX_LENGTH}
-                            />
-                            {fieldErrors.name ? (
-                                <Text style={styles.fieldError}>
-                                    {fieldErrors.name.join(' ')}
-                                </Text>
-                            ) : null}
-                        </View>
+                        <TextField
+                            label="Имя"
+                            value={name}
+                            onChangeText={(value) => {
+                                setName(value);
+                                clearError('name');
+                            }}
+                            error={fieldErrors.name?.join(' ')}
+                            accessibilityLabel="Имя"
+                            maxLength={NAME_MAX_LENGTH}
+                        />
 
-                        <View style={styles.field}>
-                            <Text style={styles.label}>Email</Text>
-                            <TextInput
-                                style={[
-                                    styles.input,
-                                    fieldErrors.email && styles.inputInvalid,
-                                ]}
-                                value={email}
-                                onChangeText={(value) => {
-                                    setEmail(value);
-                                    clearError('email');
-                                }}
-                                accessibilityLabel="Email"
-                                keyboardType="email-address"
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                                maxLength={EMAIL_MAX_LENGTH}
-                            />
-                            {fieldErrors.email ? (
-                                <Text style={styles.fieldError}>
-                                    {fieldErrors.email.join(' ')}
-                                </Text>
-                            ) : null}
-                        </View>
+                        <TextField
+                            label="Email"
+                            value={email}
+                            onChangeText={(value) => {
+                                setEmail(value);
+                                clearError('email');
+                            }}
+                            error={fieldErrors.email?.join(' ')}
+                            accessibilityLabel="Email"
+                            keyboardType="email-address"
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                            maxLength={EMAIL_MAX_LENGTH}
+                        />
 
-                        <View style={styles.field}>
-                            <Text style={styles.label}>Часовой пояс</Text>
-                            <Pressable
-                                accessibilityRole="button"
-                                accessibilityLabel={`Часовой пояс: ${timezone}`}
-                                style={[
-                                    styles.zoneButton,
-                                    fieldErrors.timezone && styles.inputInvalid,
-                                ]}
-                                onPress={() => {
-                                    setPickerVisible(true);
-                                }}
+                        <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={`Часовой пояс: ${timezone}`}
+                            style={[
+                                styles.zoneField,
+                                fieldErrors.timezone && styles.zoneFieldErrored,
+                            ]}
+                            onPress={() => {
+                                setPickerVisible(true);
+                            }}
+                        >
+                            <AppText
+                                variant="caption"
+                                color="muted"
+                                style={styles.zoneLabel}
                             >
-                                <Text style={styles.zoneButtonLabel}>
-                                    {timezone}
-                                </Text>
-                            </Pressable>
-                            <Text style={styles.fieldHint}>
-                                Время приступов отображается и экспортируется в
-                                этом поясе.
-                            </Text>
-                            {fieldErrors.timezone ? (
-                                <Text style={styles.fieldError}>
-                                    {fieldErrors.timezone.join(' ')}
-                                </Text>
-                            ) : null}
-                        </View>
+                                Часовой пояс
+                            </AppText>
+                            <AppText variant="body">{timezone}</AppText>
+                        </Pressable>
+                        <AppText
+                            variant="caption"
+                            color="muted"
+                            style={styles.fieldHint}
+                        >
+                            Время приступов отображается и экспортируется в этом
+                            поясе.
+                        </AppText>
+                        {fieldErrors.timezone ? (
+                            <AppText
+                                variant="caption"
+                                color="danger"
+                                style={styles.fieldError}
+                            >
+                                {fieldErrors.timezone.join(' ')}
+                            </AppText>
+                        ) : null}
 
                         {formError ? (
-                            <Text style={styles.formError}>{formError}</Text>
+                            <AppText
+                                variant="label"
+                                color="danger"
+                                style={styles.formError}
+                            >
+                                {formError}
+                            </AppText>
                         ) : null}
 
-                        <Pressable
-                            accessibilityRole="button"
-                            accessibilityState={{ disabled: submitting }}
-                            style={[
-                                styles.submit,
-                                submitting && styles.actionDisabled,
-                            ]}
+                        <PrimaryButton
+                            title={submitting ? 'Сохраняем…' : 'Сохранить'}
                             disabled={submitting}
                             onPress={onSubmit}
-                        >
-                            <Text style={styles.submitLabel}>
-                                {submitting ? 'Сохраняем…' : 'Сохранить'}
-                            </Text>
-                        </Pressable>
+                            style={styles.action}
+                        />
                     </View>
 
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Смена пароля</Text>
+                        <AppText
+                            variant="caption"
+                            color="muted"
+                            style={styles.sectionTitle}
+                        >
+                            Смена пароля
+                        </AppText>
 
-                        <View style={styles.field}>
-                            <Text style={styles.label}>Текущий пароль</Text>
-                            <TextInput
-                                style={[
-                                    styles.input,
-                                    passwordFieldErrors.current_password &&
-                                        styles.inputInvalid,
-                                ]}
-                                value={currentPassword}
-                                onChangeText={(value) => {
-                                    setCurrentPassword(value);
-                                    clearPasswordError('current_password');
-                                }}
-                                accessibilityLabel="Текущий пароль"
-                                secureTextEntry
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                            />
-                            {passwordFieldErrors.current_password ? (
-                                <Text style={styles.fieldError}>
-                                    {passwordFieldErrors.current_password.join(
-                                        ' ',
-                                    )}
-                                </Text>
-                            ) : null}
-                        </View>
+                        <TextField
+                            label="Текущий пароль"
+                            value={currentPassword}
+                            onChangeText={(value) => {
+                                setCurrentPassword(value);
+                                clearPasswordError('current_password');
+                            }}
+                            error={passwordFieldErrors.current_password?.join(
+                                ' ',
+                            )}
+                            accessibilityLabel="Текущий пароль"
+                            secureTextEntry
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                        />
 
-                        <View style={styles.field}>
-                            <Text style={styles.label}>Новый пароль</Text>
-                            <TextInput
-                                style={[
-                                    styles.input,
-                                    passwordFieldErrors.password &&
-                                        styles.inputInvalid,
-                                ]}
-                                value={newPassword}
-                                onChangeText={(value) => {
-                                    setNewPassword(value);
-                                    clearPasswordError('password');
-                                }}
-                                accessibilityLabel="Новый пароль"
-                                secureTextEntry
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                            />
-                            {passwordFieldErrors.password ? (
-                                <Text style={styles.fieldError}>
-                                    {passwordFieldErrors.password.join(' ')}
-                                </Text>
-                            ) : null}
-                        </View>
+                        <TextField
+                            label="Новый пароль"
+                            value={newPassword}
+                            onChangeText={(value) => {
+                                setNewPassword(value);
+                                clearPasswordError('password');
+                            }}
+                            error={passwordFieldErrors.password?.join(' ')}
+                            accessibilityLabel="Новый пароль"
+                            secureTextEntry
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                        />
 
-                        <View style={styles.field}>
-                            <Text style={styles.label}>
-                                Новый пароль ещё раз
-                            </Text>
-                            <TextInput
-                                style={[
-                                    styles.input,
-                                    passwordFieldErrors.password_confirmation &&
-                                        styles.inputInvalid,
-                                ]}
-                                value={newPasswordConfirmation}
-                                onChangeText={(value) => {
-                                    setNewPasswordConfirmation(value);
-                                    clearPasswordError('password_confirmation');
-                                }}
-                                accessibilityLabel="Новый пароль ещё раз"
-                                secureTextEntry
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                            />
-                            {passwordFieldErrors.password_confirmation ? (
-                                <Text style={styles.fieldError}>
-                                    {passwordFieldErrors.password_confirmation.join(
-                                        ' ',
-                                    )}
-                                </Text>
-                            ) : null}
-                        </View>
+                        <TextField
+                            label="Новый пароль ещё раз"
+                            value={newPasswordConfirmation}
+                            onChangeText={(value) => {
+                                setNewPasswordConfirmation(value);
+                                clearPasswordError('password_confirmation');
+                            }}
+                            error={passwordFieldErrors.password_confirmation?.join(
+                                ' ',
+                            )}
+                            accessibilityLabel="Новый пароль ещё раз"
+                            secureTextEntry
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                        />
 
                         {passwordError ? (
-                            <Text style={styles.formError}>
+                            <AppText
+                                variant="label"
+                                color="danger"
+                                style={styles.formError}
+                            >
                                 {passwordError}
-                            </Text>
+                            </AppText>
                         ) : null}
 
-                        <Pressable
-                            accessibilityRole="button"
-                            accessibilityState={{ disabled: changingPassword }}
-                            style={[
-                                styles.submit,
-                                changingPassword && styles.actionDisabled,
-                            ]}
+                        <PrimaryButton
+                            title={
+                                changingPassword
+                                    ? 'Сохраняем…'
+                                    : 'Сменить пароль'
+                            }
                             disabled={changingPassword}
                             onPress={onChangePassword}
-                        >
-                            <Text style={styles.submitLabel}>
-                                {changingPassword
-                                    ? 'Сохраняем…'
-                                    : 'Сменить пароль'}
-                            </Text>
-                        </Pressable>
+                            style={styles.action}
+                        />
                     </View>
 
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>
+                        <AppText
+                            variant="caption"
+                            color="muted"
+                            style={styles.sectionTitle}
+                        >
                             Удаление аккаунта
-                        </Text>
-                        <Text style={styles.dangerWarning}>
+                        </AppText>
+                        <AppText
+                            variant="label"
+                            color="danger"
+                            style={styles.dangerWarning}
+                        >
                             Удаление аккаунта необратимо: будут удалены все
                             записи журнала.
-                        </Text>
+                        </AppText>
 
                         {confirmDelete ? (
                             <View>
-                                <TextInput
-                                    style={[
-                                        styles.input,
-                                        deleteFieldErrors.password &&
-                                            styles.inputInvalid,
-                                    ]}
+                                <TextField
+                                    label="Пароль"
                                     value={password}
                                     onChangeText={(value) => {
                                         setPassword(value);
                                         clearDeleteError('password');
                                     }}
-                                    placeholder="Пароль"
+                                    error={deleteFieldErrors.password?.join(
+                                        ' ',
+                                    )}
                                     accessibilityLabel="Пароль"
                                     secureTextEntry
                                     autoCapitalize="none"
                                     autoCorrect={false}
                                 />
-                                {deleteFieldErrors.password ? (
-                                    <Text style={styles.fieldError}>
-                                        {deleteFieldErrors.password.join(' ')}
-                                    </Text>
-                                ) : null}
                                 {deleteError ? (
-                                    <Text style={styles.fieldError}>
+                                    <AppText
+                                        variant="caption"
+                                        color="danger"
+                                        style={styles.fieldError}
+                                    >
                                         {deleteError}
-                                    </Text>
+                                    </AppText>
                                 ) : null}
                                 <View style={styles.dangerActions}>
-                                    <Pressable
-                                        accessibilityRole="button"
-                                        style={styles.cancel}
+                                    <OutlineButton
+                                        title="Отмена"
+                                        style={styles.dangerAction}
                                         onPress={cancelDelete}
-                                    >
-                                        <Text style={styles.cancelLabel}>
-                                            Отмена
-                                        </Text>
-                                    </Pressable>
-                                    <Pressable
-                                        accessibilityRole="button"
-                                        accessibilityState={{
-                                            disabled: deleting,
-                                        }}
-                                        style={[
-                                            styles.dangerSubmit,
-                                            deleting && styles.actionDisabled,
-                                        ]}
-                                        disabled={deleting}
-                                        onPress={onDelete}
-                                    >
-                                        <Text style={styles.dangerSubmitLabel}>
-                                            {deleting
+                                    />
+                                    <DangerButton
+                                        title={
+                                            deleting
                                                 ? 'Удаляем…'
-                                                : 'Удалить навсегда'}
-                                        </Text>
-                                    </Pressable>
+                                                : 'Удалить навсегда'
+                                        }
+                                        disabled={deleting}
+                                        style={styles.dangerAction}
+                                        onPress={onDelete}
+                                    />
                                 </View>
                             </View>
                         ) : (
-                            <Pressable
-                                accessibilityRole="button"
-                                style={styles.dangerButton}
+                            <DangerButton
+                                title="Удалить аккаунт"
                                 onPress={() => {
                                     setConfirmDelete(true);
                                 }}
-                            >
-                                <Text style={styles.dangerButtonLabel}>
-                                    Удалить аккаунт
-                                </Text>
-                            </Pressable>
+                            />
                         )}
                     </View>
 
-                    <Pressable
-                        accessibilityRole="button"
-                        accessibilityState={{ disabled: loggingOut }}
-                        style={[
-                            styles.logout,
-                            loggingOut && styles.actionDisabled,
-                        ]}
+                    <OutlineButton
+                        title={loggingOut ? 'Выходим…' : 'Выйти'}
                         disabled={loggingOut}
                         onPress={onLogout}
-                    >
-                        <Text style={styles.logoutLabel}>
-                            {loggingOut ? 'Выходим…' : 'Выйти'}
-                        </Text>
-                    </Pressable>
+                    />
                 </ScrollView>
             ) : null}
 
             <Modal
                 visible={pickerVisible}
+                transparent
                 animationType="slide"
                 onRequestClose={closePicker}
             >
-                <View style={[styles.pickerScreen, { paddingTop: insets.top }]}>
-                    <View style={styles.pickerHeader}>
-                        <Text style={styles.pickerTitle}>Часовой пояс</Text>
-                        <Pressable
-                            accessibilityRole="button"
-                            style={styles.pickerCancel}
-                            onPress={closePicker}
-                        >
-                            <Text style={styles.pickerCancelLabel}>Отмена</Text>
-                        </Pressable>
-                    </View>
-                    <TextInput
-                        style={styles.pickerSearch}
-                        value={pickerSearch}
-                        onChangeText={setPickerSearch}
-                        placeholder="Поиск"
-                        accessibilityLabel="Поиск часового пояса"
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                    />
-                    <SectionList
-                        style={styles.pickerList}
-                        sections={pickerSections}
-                        keyExtractor={(zone) => zone}
-                        keyboardShouldPersistTaps="handled"
-                        renderSectionHeader={({ section }) => (
-                            <Text style={styles.pickerRegion}>
-                                {section.title}
-                            </Text>
-                        )}
-                        renderItem={({ item }) => (
+                <View style={styles.pickerBackdrop}>
+                    <View
+                        style={[
+                            styles.pickerSheet,
+                            { paddingBottom: insets.bottom + spacing.lg },
+                        ]}
+                    >
+                        <View style={styles.pickerHeader}>
+                            <AppText variant="heading">Часовой пояс</AppText>
                             <Pressable
                                 accessibilityRole="button"
-                                accessibilityState={{
-                                    selected: item === timezone,
-                                }}
-                                style={styles.pickerZone}
-                                onPress={() => {
-                                    selectZone(item);
-                                }}
+                                style={styles.pickerCancel}
+                                onPress={closePicker}
                             >
-                                <Text style={styles.pickerZoneLabel}>
-                                    {item}
-                                    {item === timezone ? ' ✓' : ''}
-                                </Text>
+                                <AppText variant="label" color="primary">
+                                    Отмена
+                                </AppText>
                             </Pressable>
-                        )}
-                    />
+                        </View>
+                        <TextField
+                            label="Поиск"
+                            value={pickerSearch}
+                            onChangeText={setPickerSearch}
+                            accessibilityLabel="Поиск часового пояса"
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                            containerStyle={styles.pickerSearch}
+                        />
+                        <SectionList
+                            style={styles.pickerList}
+                            sections={pickerSections}
+                            keyExtractor={(zone) => zone}
+                            keyboardShouldPersistTaps="handled"
+                            renderSectionHeader={({ section }) => (
+                                <AppText
+                                    variant="caption"
+                                    color="muted"
+                                    style={styles.pickerRegion}
+                                >
+                                    {section.title}
+                                </AppText>
+                            )}
+                            renderItem={({ item }) => (
+                                <Pressable
+                                    accessibilityRole="button"
+                                    accessibilityState={{
+                                        selected: item === timezone,
+                                    }}
+                                    style={styles.pickerZone}
+                                    onPress={() => {
+                                        selectZone(item);
+                                    }}
+                                >
+                                    <AppText
+                                        variant="body"
+                                        color={
+                                            item === timezone
+                                                ? 'primary'
+                                                : 'text'
+                                        }
+                                    >
+                                        {item}
+                                        {item === timezone ? ' ✓' : ''}
+                                    </AppText>
+                                </Pressable>
+                            )}
+                        />
+                    </View>
                 </View>
             </Modal>
         </View>
@@ -837,219 +810,123 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
     screen: {
-        backgroundColor: '#fff',
+        backgroundColor: colors.background,
         flex: 1,
     },
     state: {
         alignItems: 'center',
         flex: 1,
         justifyContent: 'center',
-        paddingHorizontal: 24,
-    },
-    stateHint: {
-        color: '#333',
-        fontSize: 16,
+        paddingHorizontal: spacing.xxl,
     },
     stateError: {
-        color: '#d32f2f',
-        fontSize: 14,
-        marginBottom: 16,
+        marginBottom: spacing.lg,
         textAlign: 'center',
     },
     retry: {
-        alignItems: 'center',
-        backgroundColor: '#2f6fde',
-        borderRadius: 8,
-        paddingHorizontal: 32,
-        paddingVertical: 12,
-    },
-    retryLabel: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
+        paddingHorizontal: spacing.xxxl,
     },
     content: {
-        paddingBottom: 32,
-        paddingHorizontal: 24,
-        paddingTop: 16,
+        gap: spacing.lg,
+        paddingBottom: spacing.xxxl,
+        paddingHorizontal: spacing.lg,
+        paddingTop: spacing.lg,
     },
     section: {
-        marginBottom: 32,
+        backgroundColor: colors.surface,
+        borderRadius: radius.sheet,
+        padding: spacing.xl,
     },
     sectionTitle: {
-        color: '#000',
-        fontSize: 18,
-        fontWeight: '600',
-        marginBottom: 12,
+        marginBottom: spacing.md,
+        textTransform: 'uppercase',
+        letterSpacing: 0.6,
     },
-    field: {
-        marginBottom: 16,
+    zoneField: {
+        backgroundColor: colors.surface,
+        borderColor: colors.line,
+        borderRadius: radius.control,
+        borderWidth: 1.5,
+        marginBottom: spacing.sm + 2,
+        paddingHorizontal: spacing.lg - 2,
+        paddingVertical: spacing.sm + 2,
     },
-    label: {
-        color: '#333',
-        fontSize: 15,
-        marginBottom: 6,
+    zoneFieldErrored: {
+        borderColor: colors.danger,
     },
-    input: {
-        borderColor: '#ccc',
-        borderRadius: 8,
-        borderWidth: 1,
-        fontSize: 16,
-        paddingHorizontal: 12,
-        paddingVertical: 10,
-    },
-    inputInvalid: {
-        borderColor: '#d32f2f',
-    },
-    fieldError: {
-        color: '#d32f2f',
-        fontSize: 13,
-        marginTop: 4,
-    },
-    zoneButton: {
-        borderColor: '#ccc',
-        borderRadius: 8,
-        borderWidth: 1,
-        paddingHorizontal: 12,
-        paddingVertical: 12,
-    },
-    zoneButtonLabel: {
-        color: '#000',
-        fontSize: 16,
+    zoneLabel: {
+        fontSize: 11,
+        lineHeight: 14,
+        letterSpacing: 0.44,
+        textTransform: 'uppercase',
     },
     fieldHint: {
-        color: '#666',
-        fontSize: 14,
-        marginTop: 4,
+        marginLeft: spacing.xs,
+        marginBottom: spacing.sm,
+    },
+    fieldError: {
+        marginTop: spacing.xs,
+        marginLeft: spacing.xs,
     },
     formError: {
-        color: '#d32f2f',
-        fontSize: 14,
-        marginBottom: 12,
+        marginBottom: spacing.md,
         textAlign: 'center',
     },
-    actionDisabled: {
-        opacity: 0.6,
-    },
-    submit: {
-        alignItems: 'center',
-        backgroundColor: '#2f6fde',
-        borderRadius: 8,
-        paddingVertical: 12,
-    },
-    submitLabel: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
+    action: {
+        marginTop: spacing.xs,
     },
     dangerWarning: {
-        color: '#d32f2f',
-        fontSize: 14,
-        marginBottom: 12,
-    },
-    dangerButton: {
-        alignItems: 'center',
-        borderColor: '#d32f2f',
-        borderRadius: 8,
-        borderWidth: 1,
-        paddingVertical: 12,
-    },
-    dangerButtonLabel: {
-        color: '#d32f2f',
-        fontSize: 16,
-        fontWeight: '600',
+        marginBottom: spacing.md,
     },
     dangerActions: {
         flexDirection: 'row',
-        gap: 12,
+        gap: spacing.md,
+        marginTop: spacing.xs,
     },
-    cancel: {
-        alignItems: 'center',
-        borderColor: '#ccc',
-        borderRadius: 8,
-        borderWidth: 1,
+    dangerAction: {
         flex: 1,
-        paddingVertical: 12,
     },
-    cancelLabel: {
-        color: '#000',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    dangerSubmit: {
-        alignItems: 'center',
-        backgroundColor: '#d32f2f',
-        borderRadius: 8,
+    pickerBackdrop: {
+        backgroundColor: colors.overlay,
         flex: 1,
-        paddingVertical: 12,
+        justifyContent: 'flex-end',
     },
-    dangerSubmitLabel: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    logout: {
-        alignItems: 'center',
-        backgroundColor: '#2f6fde',
-        borderRadius: 8,
-        paddingVertical: 12,
-    },
-    logoutLabel: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    pickerScreen: {
-        backgroundColor: '#fff',
-        flex: 1,
+    pickerSheet: {
+        backgroundColor: colors.surface,
+        borderTopLeftRadius: radius.sheet,
+        borderTopRightRadius: radius.sheet,
+        height: '80%',
+        paddingTop: spacing.lg,
     },
     pickerHeader: {
         alignItems: 'center',
         flexDirection: 'row',
         justifyContent: 'space-between',
-        paddingBottom: 8,
-        paddingHorizontal: 24,
-        paddingTop: 16,
-    },
-    pickerTitle: {
-        color: '#000',
-        fontSize: 18,
-        fontWeight: '600',
+        paddingBottom: spacing.sm,
+        paddingHorizontal: spacing.xxl,
     },
     pickerCancel: {
-        paddingVertical: 6,
-    },
-    pickerCancelLabel: {
-        color: '#2f6fde',
-        fontSize: 16,
+        justifyContent: 'center',
+        minHeight: 44,
     },
     pickerSearch: {
-        borderColor: '#ccc',
-        borderRadius: 8,
-        borderWidth: 1,
-        fontSize: 16,
-        marginHorizontal: 24,
-        marginBottom: 8,
-        paddingHorizontal: 12,
-        paddingVertical: 10,
+        marginBottom: spacing.sm,
+        marginHorizontal: spacing.xxl,
     },
     pickerList: {
         flex: 1,
     },
     pickerRegion: {
-        backgroundColor: '#fff',
-        color: '#666',
-        fontSize: 13,
-        fontWeight: '600',
-        paddingHorizontal: 24,
-        paddingVertical: 8,
+        backgroundColor: colors.surface,
+        paddingHorizontal: spacing.xxl,
+        paddingVertical: spacing.sm,
+        textTransform: 'uppercase',
+        letterSpacing: 0.6,
     },
     pickerZone: {
-        paddingHorizontal: 24,
-        paddingVertical: 12,
-    },
-    pickerZoneLabel: {
-        color: '#000',
-        fontSize: 16,
+        justifyContent: 'center',
+        minHeight: 44,
+        paddingHorizontal: spacing.xxl,
+        paddingVertical: spacing.md,
     },
 });

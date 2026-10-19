@@ -10,6 +10,7 @@ use App\Http\Resources\SeizureRowResource;
 use App\Mail\JournalReport;
 use App\Services\SeizureDocxBuilder;
 use App\Services\SeizureQuery;
+use App\Services\SeizureSummaryBuilder;
 use App\Services\SeizureWriter;
 use App\Support\JournalFilename;
 use App\Support\SeizurePeriodReport;
@@ -43,6 +44,7 @@ class SeizureController extends Controller
         private readonly SeizureQuery $query,
         private readonly SeizureWriter $writer,
         private readonly SeizureDocxBuilder $docxBuilder,
+        private readonly SeizureSummaryBuilder $summaryBuilder,
     ) {}
 
     /**
@@ -70,6 +72,9 @@ class SeizureController extends Controller
                 'to' => $period['to'],
                 'all' => $request->boolean('all'),
             ],
+            'summary' => $this->summaryBuilder
+                ->build($request->user(), $period['from'], $period['to'], null)
+                ->toArray(),
         ]);
     }
 

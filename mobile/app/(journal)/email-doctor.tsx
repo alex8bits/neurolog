@@ -1,16 +1,13 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import {
-    Alert,
-    Pressable,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
-} from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 
 import { emailSeizuresDoctor } from '@/api/seizures';
+import { AppText } from '@/components/ui/AppText';
+import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { TextField } from '@/components/ui/TextField';
 import { deviceTimezone } from '@/config/timezone';
+import { colors, spacing } from '@/theme/tokens';
 import { ApiError, userMessage } from '@/utils/errors';
 
 /** Серверные лимиты письма (Api/V1/EmailDoctorRequest.php): to/subject —
@@ -151,148 +148,86 @@ export default function EmailDoctorScreen() {
 
     return (
         <View style={styles.screen}>
-            <View style={styles.field}>
-                <TextInput
-                    style={[
-                        styles.input,
-                        fieldErrors.to && styles.inputInvalid,
-                    ]}
-                    value={recipient}
-                    onChangeText={(value) => {
-                        setRecipient(value);
-                        clearError('to');
-                    }}
-                    placeholder="Адрес получателя"
-                    accessibilityLabel="Кому"
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    maxLength={RECIPIENT_MAX_LENGTH}
-                />
-                {fieldErrors.to ? (
-                    <Text style={styles.fieldError}>
-                        {fieldErrors.to.join(' ')}
-                    </Text>
-                ) : null}
-            </View>
+            <TextField
+                label="Кому"
+                placeholder="Адрес получателя"
+                value={recipient}
+                onChangeText={(value) => {
+                    setRecipient(value);
+                    clearError('to');
+                }}
+                error={fieldErrors.to?.join(' ')}
+                accessibilityLabel="Кому"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                maxLength={RECIPIENT_MAX_LENGTH}
+            />
 
-            <View style={styles.field}>
-                <TextInput
-                    style={[
-                        styles.input,
-                        fieldErrors.subject && styles.inputInvalid,
-                    ]}
-                    value={subject}
-                    onChangeText={(value) => {
-                        setSubject(value);
-                        clearError('subject');
-                    }}
-                    placeholder="Тема (необязательно)"
-                    accessibilityLabel="Тема"
-                    maxLength={SUBJECT_MAX_LENGTH}
-                />
-                {fieldErrors.subject ? (
-                    <Text style={styles.fieldError}>
-                        {fieldErrors.subject.join(' ')}
-                    </Text>
-                ) : null}
-            </View>
+            <TextField
+                label="Тема"
+                placeholder="Тема (необязательно)"
+                value={subject}
+                onChangeText={(value) => {
+                    setSubject(value);
+                    clearError('subject');
+                }}
+                error={fieldErrors.subject?.join(' ')}
+                accessibilityLabel="Тема"
+                maxLength={SUBJECT_MAX_LENGTH}
+            />
 
-            <View style={styles.field}>
-                <TextInput
-                    style={[
-                        styles.inputArea,
-                        fieldErrors.body && styles.inputInvalid,
-                    ]}
-                    value={body}
-                    multiline
-                    onChangeText={(value) => {
-                        setBody(value);
-                        clearError('body');
-                    }}
-                    placeholder="Текст письма (необязательно)"
-                    accessibilityLabel="Текст письма"
-                    maxLength={BODY_MAX_LENGTH}
-                />
-                {fieldErrors.body ? (
-                    <Text style={styles.fieldError}>
-                        {fieldErrors.body.join(' ')}
-                    </Text>
-                ) : null}
-            </View>
+            <TextField
+                label="Текст письма"
+                placeholder="Текст письма (необязательно)"
+                value={body}
+                multiline
+                onChangeText={(value) => {
+                    setBody(value);
+                    clearError('body');
+                }}
+                error={fieldErrors.body?.join(' ')}
+                style={styles.bodyInput}
+                accessibilityLabel="Текст письма"
+                maxLength={BODY_MAX_LENGTH}
+            />
 
             {formError ? (
-                <Text style={styles.formError}>{formError}</Text>
+                <AppText
+                    variant="label"
+                    color="danger"
+                    style={styles.formError}
+                >
+                    {formError}
+                </AppText>
             ) : null}
 
-            <Pressable
-                accessibilityRole="button"
-                accessibilityState={{ disabled: submitting }}
-                style={[styles.submit, submitting && styles.submitDisabled]}
+            <PrimaryButton
+                title={submitting ? 'Отправляем…' : 'Отправить'}
                 disabled={submitting}
                 onPress={onSubmit}
-            >
-                <Text style={styles.submitLabel}>
-                    {submitting ? 'Отправляем…' : 'Отправить'}
-                </Text>
-            </Pressable>
+                style={styles.submit}
+            />
         </View>
     );
 }
 
 const styles = StyleSheet.create({
     screen: {
-        backgroundColor: '#fff',
+        backgroundColor: colors.surface,
         flex: 1,
-        paddingHorizontal: 24,
-        paddingTop: 16,
+        paddingHorizontal: spacing.xxl,
+        paddingTop: spacing.lg,
     },
-    field: {
-        marginBottom: 16,
-    },
-    input: {
-        borderColor: '#ccc',
-        borderRadius: 8,
-        borderWidth: 1,
-        fontSize: 16,
-        paddingHorizontal: 12,
-        paddingVertical: 10,
-    },
-    inputArea: {
-        borderColor: '#ccc',
-        borderRadius: 8,
-        borderWidth: 1,
-        fontSize: 16,
+    bodyInput: {
         minHeight: 96,
-        paddingHorizontal: 12,
-        paddingVertical: 10,
-    },
-    inputInvalid: {
-        borderColor: '#d32f2f',
-    },
-    fieldError: {
-        color: '#d32f2f',
-        fontSize: 13,
-        marginTop: 4,
+        textAlignVertical: 'top',
     },
     formError: {
-        color: '#d32f2f',
-        fontSize: 14,
-        marginBottom: 12,
+        marginBottom: spacing.md,
         textAlign: 'center',
     },
     submit: {
-        alignItems: 'center',
-        backgroundColor: '#2f6fde',
-        borderRadius: 8,
-        paddingVertical: 12,
-    },
-    submitDisabled: {
-        opacity: 0.6,
-    },
-    submitLabel: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
+        marginTop: spacing.xs,
     },
 });

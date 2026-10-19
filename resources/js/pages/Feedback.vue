@@ -43,7 +43,7 @@ function onAnonymousChange(value: boolean | 'indeterminate'): void {
 
     <!-- Контейнер как у журнала (p-4/flex-1): боковые отступы от
          сайдбара и заполнение высоты, а не прилипший к краю контент. -->
-    <div class="flex h-full flex-1 flex-col gap-6 p-4">
+    <div class="mx-auto flex h-full w-full max-w-xl flex-1 flex-col gap-6 p-4">
         <Heading
             variant="small"
             title="Обратная связь"
@@ -53,7 +53,7 @@ function onAnonymousChange(value: boolean | 'indeterminate'): void {
         <p
             v-if="justSent"
             role="status"
-            class="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700"
+            class="rounded-xl border border-primary/30 bg-primary-soft px-4 py-3 text-sm font-semibold text-primary"
         >
             Обращение отправлено. Спасибо!
         </p>
@@ -61,12 +61,16 @@ function onAnonymousChange(value: boolean | 'indeterminate'): void {
         <Form
             v-bind="FeedbackController.store.form()"
             :options="{ preserveScroll: true }"
-            class="space-y-6"
+            class="space-y-5 rounded-2xl border border-border bg-card p-5"
             v-slot="{ errors, processing }"
             @success="onSent"
         >
             <div class="grid gap-2">
-                <Label for="name">Имя</Label>
+                <Label
+                    for="name"
+                    class="text-xs font-bold tracking-wide text-muted-foreground uppercase"
+                    >Имя</Label
+                >
                 <Input
                     id="name"
                     name="name"
@@ -78,7 +82,11 @@ function onAnonymousChange(value: boolean | 'indeterminate'): void {
             </div>
 
             <div class="grid gap-2">
-                <Label for="email">Почта</Label>
+                <Label
+                    for="email"
+                    class="text-xs font-bold tracking-wide text-muted-foreground uppercase"
+                    >Почта</Label
+                >
                 <Input
                     id="email"
                     name="email"
@@ -109,7 +117,11 @@ function onAnonymousChange(value: boolean | 'indeterminate'): void {
             </p>
 
             <div class="grid gap-2">
-                <Label for="message">Текст обращения</Label>
+                <Label
+                    for="message"
+                    class="text-xs font-bold tracking-wide text-muted-foreground uppercase"
+                    >Текст обращения</Label
+                >
                 <textarea
                     id="message"
                     name="message"
@@ -118,12 +130,12 @@ function onAnonymousChange(value: boolean | 'indeterminate'): void {
                     rows="6"
                     maxlength="5000"
                     required
-                    class="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    class="rounded-xl border-[1.5px] border-input bg-background px-3 py-2 text-sm outline-none focus-visible:border-primary focus-visible:ring-[3px] focus-visible:ring-primary-soft"
                 />
                 <InputError :message="errors.message" />
             </div>
 
-            <Button type="submit" :disabled="processing">
+            <Button type="submit" size="lg" :disabled="processing">
                 {{ processing ? 'Отправляем…' : 'Отправить' }}
             </Button>
         </Form>

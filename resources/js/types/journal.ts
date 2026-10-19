@@ -18,6 +18,20 @@ export type JournalFilters = {
     all?: boolean;
 };
 
+// Сводка журнала (SeizureSummaryBuilder): 30 дней по дням в поясе владельца
+// (по возрастанию, последний = today, нули включены) и итоги выбранного периода.
+export type JournalSummary = {
+    timezone: string;
+    today: string;
+    days: { date: string; count: number }[];
+    period: {
+        from: string | null;
+        to: string | null;
+        total: number;
+        days_with_seizures: number;
+    };
+};
+
 // Laravel's `LengthAwarePaginator` JSON shape that Inertia passes to the page.
 // `links` is a flat object with first/last/prev/next URLs; the per-page link
 // chips (Previous / page numbers / Next) live under `meta.links`. Only the

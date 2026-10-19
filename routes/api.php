@@ -53,6 +53,8 @@ Route::middleware('auth:sanctum')->name('api.v1.')->group(function () {
 
     Route::get('seizures', [SeizureController::class, 'index'])->name('seizures.index');
 
+    Route::get('seizures/summary', [SeizureController::class, 'summary'])->name('seizures.summary');
+
     // Параметр {seizure} намеренно без route-model binding: разрешение записи
     // с проверкой владельца делает контроллер через $request->user()->seizures().
     Route::patch('seizures/{seizure}', [SeizureController::class, 'update'])

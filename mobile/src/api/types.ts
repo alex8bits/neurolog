@@ -141,3 +141,38 @@ export interface FeedbackInput {
     email: string;
     message: string;
 }
+
+/** День ленты сводки: Y-m-d в поясе запроса и число приступов. */
+export interface SeizureSummaryDay {
+    date: string; // Y-m-d
+    count: number;
+}
+
+/** Итоги выбранного периода сводки. */
+export interface SeizureSummaryPeriod {
+    from: string | null;
+    to: string | null;
+    total: number;
+    days_with_seizures: number;
+}
+
+/** Данные GET /seizures/summary: последние 30 дней (days, по возрастанию),
+ *  сегодняшний день в поясе запроса и итоги периода. */
+export interface SeizureSummary {
+    timezone: string;
+    today: string; // Y-m-d
+    days: SeizureSummaryDay[];
+    period: SeizureSummaryPeriod;
+}
+
+/** Тело ответа GET /seizures/summary — стандартная обёртка data. */
+export interface SeizureSummaryResponse {
+    data: SeizureSummary;
+}
+
+/** Параметры GET /seizures/summary; from/to — Y-m-d, как у списка. */
+export interface SummaryParams {
+    timezone: string; // IANA
+    from?: string; // Y-m-d
+    to?: string; // Y-m-d
+}

@@ -5,9 +5,12 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\IndexSeizureRequest;
 use App\Http\Requests\Api\V1\StoreSeizureRequest;
+use App\Http\Requests\Api\V1\SummarySeizureRequest;
 use App\Http\Requests\Api\V1\UpdateSeizureRequest;
 use App\Http\Resources\Api\V1\SeizureResource;
+use App\Http\Resources\Api\V1\SeizureSummaryResource;
 use App\Services\SeizureQuery;
+use App\Services\SeizureSummaryBuilder;
 use App\Services\SeizureWriter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,6 +22,7 @@ class SeizureController extends Controller
     public function __construct(
         private readonly SeizureWriter $writer,
         private readonly SeizureQuery $query,
+        private readonly SeizureSummaryBuilder $summaryBuilder,
     ) {}
 
     /**
@@ -50,6 +54,19 @@ class SeizureController extends Controller
         );
 
         return SeizureResource::collection($paginator);
+    }
+
+    /**
+     * The last 30 days per day plus the totals of the requested period.
+     */
+    public function summary(SummarySeizureRequest $request): SeizureSummaryResource
+    {
+        return new SeizureSummaryResource($this->summaryBuilder->build(
+            $request->user(),
+            $request->fromInput(),
+            $request->toInput(),
+            $request->timezoneInput(),
+        ));
     }
 
     /**

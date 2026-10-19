@@ -62,7 +62,6 @@ const timezone = ref<string>(user.value.timezone);
                 <Label for="name">Имя</Label>
                 <Input
                     id="name"
-                    class="mt-1 block w-full"
                     name="name"
                     :default-value="user.name"
                     required
@@ -77,7 +76,6 @@ const timezone = ref<string>(user.value.timezone);
                 <Input
                     id="email"
                     type="email"
-                    class="mt-1 block w-full"
                     name="email"
                     :default-value="user.email"
                     required
@@ -123,7 +121,7 @@ const timezone = ref<string>(user.value.timezone);
                     <Link
                         :href="send()"
                         as="button"
-                        class="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
+                        class="text-foreground underline decoration-border underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current!"
                     >
                         Нажмите здесь, чтобы отправить письмо повторно.
                     </Link>
@@ -131,14 +129,17 @@ const timezone = ref<string>(user.value.timezone);
 
                 <div
                     v-if="page.props.status === 'verification-link-sent'"
-                    class="mt-2 text-sm font-medium text-green-600"
+                    class="mt-2 text-sm font-medium text-primary"
                 >
                     Новая ссылка для подтверждения отправлена на ваш email.
                 </div>
             </div>
 
             <div class="flex items-center gap-4">
-                <Button :disabled="processing" data-test="update-profile-button"
+                <Button
+                    size="lg"
+                    :disabled="processing"
+                    data-test="update-profile-button"
                     >Сохранить</Button
                 >
             </div>

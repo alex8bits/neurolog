@@ -1,10 +1,16 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { updateSeizure } from '@/api/seizures';
+import { AppText } from '@/components/ui/AppText';
+import { OutlineButton } from '@/components/ui/OutlineButton';
+import { PickerField } from '@/components/ui/PickerField';
+import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { TextField } from '@/components/ui/TextField';
 import { deviceTimezone } from '@/config/timezone';
+import { colors, spacing } from '@/theme/tokens';
 import { ApiError, userMessage } from '@/utils/errors';
 import {
     formatHm,
@@ -28,6 +34,8 @@ type EditScreenParams = {
     id?: string | string[];
     occurredAt?: string | string[];
     comment?: string | string[];
+    /** focus=comment — из меню строки: комментарий раскрыт и в фокусе. */
+    focus?: string | string[];
 };
 
 /** Первое значение роут-параметра; отсутствующий — пустая строка. */
@@ -48,8 +56,8 @@ function firstParam(value: string | string[] | undefined): string {
  * 422) скопирована с new.tsx. После 200 уходим назад — журнал перечитается
  * фокус-эффектом. 404 (запись удалена с другого устройства) — терминальное
  * состояние «Запись не найдена» с кнопкой «Назад»: править нечего, повтор
- * бессмыслен. Сеть/5xx/429 — текст и «Повторить». Отмена — системная
- * «назад» (стрелка нативного заголовка), отдельной кнопки нет.
+ * бессмыслен. Сеть/5xx/429 — текст и «Повторить». Отмена — ссылка
+ * под кнопкой и системная «назад».
  */
 export default function EditSeizureScreen() {
     const router = useRouter();
@@ -60,6 +68,12 @@ export default function EditSeizureScreen() {
     const id = Number(firstParam(params.id));
 
     const [comment, setComment] = useState(() => firstParam(params.comment));
+
+    // Комментарий раскрыт, если непуст или пришёл focus=comment.
+    const focusComment = firstParam(params.focus) === 'comment';
+    const [commentOpen, setCommentOpen] = useState(
+        () => firstParam(params.comment) !== '' || focusComment,
+    );
     const [submitting, setSubmitting] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>(
@@ -160,7 +174,10 @@ export default function EditSeizureScreen() {
         try {
             await updateSeizure(id, {
                 timezone: deviceTimezone(),
-                comment: comment.trim() === '' ? undefined : comment.trim(),
+                comment:
+                    !commentOpen || comment.trim() === ''
+                        ? undefined
+                        : comment.trim(),
                 occurred_at: toNaiveLocalIso(moment),
             });
 
@@ -175,59 +192,57 @@ export default function EditSeizureScreen() {
     if (notFound) {
         return (
             <View style={styles.state}>
-                <Text style={styles.stateError}>Запись не найдена.</Text>
-                <Pressable
-                    accessibilityRole="button"
+                <AppText
+                    color="danger"
+                    variant="label"
+                    style={styles.stateError}
+                >
+                    Запись не найдена.
+                </AppText>
+                <PrimaryButton
+                    title="Назад"
                     style={styles.back}
                     onPress={() => {
                         router.back();
                     }}
-                >
-                    <Text style={styles.backLabel}>Назад</Text>
-                </Pressable>
+                />
             </View>
         );
     }
 
     return (
-        <View style={styles.screen}>
+        <ScrollView
+            style={styles.screen}
+            contentContainerStyle={styles.content}
+            keyboardShouldPersistTaps="handled"
+        >
             <View style={styles.field}>
                 <View style={styles.momentRow}>
-                    <Pressable
-                        accessibilityRole="button"
-                        style={[
-                            styles.momentButton,
-                            fieldErrors.occurred_at &&
-                                styles.momentButtonInvalid,
-                        ]}
+                    <PickerField
+                        label="Дата"
+                        value={formatYmd(moment)}
+                        invalid={!!fieldErrors.occurred_at}
                         onPress={() => {
                             openPicker('date');
                         }}
-                    >
-                        <Text style={styles.momentButtonLabel}>
-                            Дата: {formatYmd(moment)}
-                        </Text>
-                    </Pressable>
-                    <Pressable
-                        accessibilityRole="button"
-                        style={[
-                            styles.momentButton,
-                            fieldErrors.occurred_at &&
-                                styles.momentButtonInvalid,
-                        ]}
+                    />
+                    <PickerField
+                        label="Время"
+                        value={formatHm(moment)}
+                        invalid={!!fieldErrors.occurred_at}
                         onPress={() => {
                             openPicker('time');
                         }}
-                    >
-                        <Text style={styles.momentButtonLabel}>
-                            Время: {formatHm(moment)}
-                        </Text>
-                    </Pressable>
+                    />
                 </View>
                 {fieldErrors.occurred_at ? (
-                    <Text style={styles.fieldError}>
+                    <AppText
+                        variant="caption"
+                        color="danger"
+                        style={styles.fieldError}
+                    >
                         {fieldErrors.occurred_at.join(' ')}
-                    </Text>
+                    </AppText>
                 ) : null}
             </View>
 
@@ -269,178 +284,114 @@ export default function EditSeizureScreen() {
                 />
             ) : null}
 
-            <View style={styles.field}>
-                <TextInput
-                    style={[
-                        styles.input,
-                        fieldErrors.comment && styles.inputInvalid,
-                    ]}
-                    value={comment}
-                    multiline
-                    onChangeText={(value) => {
-                        setComment(value);
-                        clearError('comment');
+            {commentOpen ? (
+                <View style={styles.field}>
+                    <TextField
+                        label="Комментарий"
+                        value={comment}
+                        multiline
+                        autoFocus={focusComment}
+                        error={fieldErrors.comment?.join(' ')}
+                        onChangeText={(value) => {
+                            setComment(value);
+                            clearError('comment');
+                        }}
+                        placeholder="Необязательно"
+                        maxLength={COMMENT_MAX_LENGTH}
+                        containerStyle={styles.fieldReset}
+                    />
+                    <AppText
+                        variant="caption"
+                        color="muted"
+                        style={styles.counter}
+                    >
+                        {comment.length}/{COMMENT_MAX_LENGTH}
+                    </AppText>
+                </View>
+            ) : (
+                <Pressable
+                    accessibilityRole="button"
+                    style={styles.addComment}
+                    onPress={() => {
+                        setCommentOpen(true);
                     }}
-                    placeholder="Комментарий (необязательно)"
-                    maxLength={COMMENT_MAX_LENGTH}
-                />
-                {fieldErrors.comment ? (
-                    <Text style={styles.fieldError}>
-                        {fieldErrors.comment.join(' ')}
-                    </Text>
-                ) : null}
-                <Text style={styles.counter}>
-                    {comment.length}/{COMMENT_MAX_LENGTH}
-                </Text>
-            </View>
+                >
+                    <AppText color="primary" variant="label">
+                        + комментарий
+                    </AppText>
+                </Pressable>
+            )}
 
             {formError ? (
-                <Text style={styles.formError}>{formError}</Text>
+                <AppText
+                    color="danger"
+                    variant="label"
+                    style={styles.formError}
+                >
+                    {formError}
+                </AppText>
             ) : null}
 
-            <View style={styles.actions}>
-                <Pressable
-                    accessibilityRole="button"
-                    accessibilityState={{ disabled: submitting }}
-                    style={[styles.submit, submitting && styles.submitDisabled]}
-                    disabled={submitting}
-                    onPress={onSubmit}
-                >
-                    <Text style={styles.submitLabel}>
-                        {submitting ? 'Сохраняем…' : 'Сохранить'}
-                    </Text>
-                </Pressable>
-            </View>
+            <PrimaryButton
+                title={submitting ? 'Сохраняем…' : 'Сохранить'}
+                disabled={submitting}
+                onPress={onSubmit}
+            />
 
             {formError !== null ? (
-                <Pressable
-                    accessibilityRole="button"
+                <OutlineButton
+                    title="Повторить"
                     style={styles.retry}
                     onPress={() => {
                         void onSubmit();
                     }}
-                >
-                    <Text style={styles.retryLabel}>Повторить</Text>
-                </Pressable>
+                />
             ) : null}
-        </View>
+
+            <Pressable
+                accessibilityRole="button"
+                style={styles.cancel}
+                onPress={() => {
+                    router.back();
+                }}
+            >
+                <AppText color="muted" variant="label">
+                    Отмена
+                </AppText>
+            </Pressable>
+        </ScrollView>
     );
 }
 
 const styles = StyleSheet.create({
-    screen: {
-        backgroundColor: '#fff',
-        flex: 1,
-        paddingHorizontal: 24,
-        paddingTop: 16,
+    screen: { backgroundColor: colors.background, flex: 1 },
+    content: { padding: spacing.xxl },
+    field: { marginBottom: spacing.md },
+    fieldReset: { marginBottom: 0 },
+    momentRow: { flexDirection: 'row', gap: spacing.md },
+    fieldError: { marginTop: spacing.xs },
+    counter: { marginTop: spacing.xs, textAlign: 'right' },
+    addComment: {
+        alignSelf: 'flex-start',
+        minHeight: 44,
+        justifyContent: 'center',
+        marginBottom: spacing.sm,
     },
-    momentRow: {
-        flexDirection: 'row',
-        gap: 12,
-    },
-    momentButton: {
+    formError: { marginBottom: spacing.md, textAlign: 'center' },
+    retry: { marginTop: spacing.md },
+    cancel: {
         alignItems: 'center',
-        borderColor: '#ccc',
-        borderRadius: 8,
-        borderWidth: 1,
-        flex: 1,
-        paddingVertical: 12,
-    },
-    momentButtonInvalid: {
-        borderColor: '#d32f2f',
-    },
-    momentButtonLabel: {
-        color: '#000',
-        fontSize: 16,
-    },
-    field: {
-        marginBottom: 16,
-    },
-    input: {
-        borderColor: '#ccc',
-        borderRadius: 8,
-        borderWidth: 1,
-        fontSize: 16,
-        minHeight: 96,
-        paddingHorizontal: 12,
-        paddingVertical: 10,
-    },
-    inputInvalid: {
-        borderColor: '#d32f2f',
-    },
-    fieldError: {
-        color: '#d32f2f',
-        fontSize: 13,
-        marginTop: 4,
-    },
-    counter: {
-        color: '#333',
-        fontSize: 13,
-        marginTop: 4,
-        textAlign: 'right',
-    },
-    formError: {
-        color: '#d32f2f',
-        fontSize: 14,
-        marginBottom: 12,
-        textAlign: 'center',
-    },
-    actions: {
-        flexDirection: 'row',
-        gap: 12,
-    },
-    submit: {
-        alignItems: 'center',
-        backgroundColor: '#2f6fde',
-        borderRadius: 8,
-        flex: 1,
-        paddingVertical: 12,
-    },
-    submitDisabled: {
-        opacity: 0.6,
-    },
-    submitLabel: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    retry: {
-        alignItems: 'center',
-        backgroundColor: '#2f6fde',
-        borderRadius: 8,
-        marginTop: 12,
-        paddingHorizontal: 32,
-        paddingVertical: 12,
-        alignSelf: 'center',
-    },
-    retryLabel: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
+        justifyContent: 'center',
+        minHeight: 44,
+        marginTop: spacing.sm,
     },
     state: {
         alignItems: 'center',
-        backgroundColor: '#fff',
+        backgroundColor: colors.background,
         flex: 1,
         justifyContent: 'center',
-        paddingHorizontal: 24,
+        paddingHorizontal: spacing.xxl,
     },
-    stateError: {
-        color: '#d32f2f',
-        fontSize: 14,
-        marginBottom: 16,
-        textAlign: 'center',
-    },
-    back: {
-        alignItems: 'center',
-        backgroundColor: '#2f6fde',
-        borderRadius: 8,
-        paddingHorizontal: 32,
-        paddingVertical: 12,
-    },
-    backLabel: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
-    },
+    stateError: { marginBottom: spacing.lg, textAlign: 'center' },
+    back: { paddingHorizontal: spacing.xxxl },
 });

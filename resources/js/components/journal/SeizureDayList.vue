@@ -1,10 +1,7 @@
 <script setup lang="ts">
-import { Pencil, Trash2 } from '@lucide/vue';
 import { computed } from 'vue';
-import DeleteSeizureDialog from '@/components/journal/DeleteSeizureDialog.vue';
-import EditSeizureDialog from '@/components/journal/EditSeizureDialog.vue';
-import { Button } from '@/components/ui/button';
-import type { SeizureRow } from '@/types/journal';
+import SeizureRow from '@/components/journal/SeizureRow.vue';
+import type { SeizureRow as SeizureRowType } from '@/types/journal';
 import {
     formatDayTitle,
     groupRowsByDay,
@@ -12,7 +9,7 @@ import {
 } from '@/utils/dayGroups';
 
 const props = defineProps<{
-    rows: SeizureRow[];
+    rows: SeizureRowType[];
     todayYmd: string;
 }>();
 
@@ -21,67 +18,36 @@ const groups = computed(() => groupRowsByDay(props.rows));
 
 <template>
     <div class="w-full">
-        <!-- Полоса группы тянется на всю ширину контентной области: страница
-             журнала даёт боковые отступы p-4, поэтому -mx-4 расширяет фон до
-             краёв, а px-4 возвращает содержимое к общим отступам. -->
-        <section
-            v-for="(group, index) in groups"
-            :key="group.key"
-            class="-mx-4 px-4"
-            :class="index % 2 === 1 ? 'bg-muted/50' : undefined"
-        >
-            <h2 class="pt-3 pb-1 text-xs font-semibold text-muted-foreground">
-                {{ formatDayTitle(group.key, todayYmd) }} ·
-                {{ group.rows.length }}
-                {{ pluralizeSeizures(group.rows.length) }}
+        <section v-for="group in groups" :key="group.key">
+            <h2
+                class="mt-3.5 mb-1.5 flex items-baseline justify-between font-extrabold"
+            >
+                <b
+                    class="font-extrabold"
+                    :class="
+                        group.key === todayYmd
+                            ? 'rounded-lg bg-sun-soft px-2.5 py-0.5'
+                            : ''
+                    "
+                >
+                    {{
+                        group.key === todayYmd
+                            ? `Сегодня, ${formatDayTitle(group.key, todayYmd)}`
+                            : formatDayTitle(group.key, todayYmd)
+                    }}
+                </b>
+                <span class="text-[13px] font-semibold text-muted-foreground">
+                    {{ group.rows.length }}
+                    {{ pluralizeSeizures(group.rows.length) }}
+                </span>
             </h2>
 
-            <ul>
-                <!-- Разделитель — только между строками группы: последняя
-                     строка границы не получает (last:border-b-0). -->
-                <li
+            <ul class="overflow-hidden rounded-2xl bg-card">
+                <SeizureRow
                     v-for="row in group.rows"
                     :key="row.id"
-                    class="flex items-center justify-between gap-3 border-b border-border/40 text-sm last:border-b-0"
-                >
-                    <div class="flex min-w-0 flex-1 items-baseline gap-3">
-                        <span class="shrink-0 font-semibold tabular-nums">
-                            {{ row.time }}
-                        </span>
-                        <p
-                            v-if="row.comment !== null"
-                            class="line-clamp-3 min-w-0 flex-1 text-muted-foreground"
-                        >
-                            {{ row.comment }}
-                        </p>
-                    </div>
-
-                    <div class="flex shrink-0 gap-1">
-                        <EditSeizureDialog :row="row">
-                            <template #trigger>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    aria-label="Редактировать запись"
-                                >
-                                    <Pencil />
-                                </Button>
-                            </template>
-                        </EditSeizureDialog>
-
-                        <DeleteSeizureDialog :row="row">
-                            <template #trigger>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    aria-label="Удалить запись"
-                                >
-                                    <Trash2 />
-                                </Button>
-                            </template>
-                        </DeleteSeizureDialog>
-                    </div>
-                </li>
+                    :row="row"
+                />
             </ul>
         </section>
     </div>

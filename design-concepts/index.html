@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Концепции редизайна — сравнение</title>
+<style>
+:root{--bg:#F7F6F2;--text:#1B1D21;--muted:#62666E;--line:#DAD8D0}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,'Segoe UI',sans-serif;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;padding:32px 20px 80px}
+h1{font-size:36px;margin:0 0 8px;letter-spacing:-.02em}
+p.lead{max-width:760px;font-size:17px;color:#33363c}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin:28px 0}
+@media(max-width:900px){.cards{grid-template-columns:1fr}}
+.c{display:block;text-decoration:none;color:inherit;border:1px solid var(--line);background:#fff;padding:0 0 16px;overflow:hidden}
+.c .pv{height:150px;padding:14px}
+.c h3{margin:14px 16px 4px;font-size:20px}
+.c p{margin:0 16px;font-size:14px;color:var(--muted)}
+.c .go{margin:12px 16px 0;font-weight:600;font-size:14px;color:#1D4ED8}
+.pa{background:#FBF8F1;font-family:Georgia,serif}.pa b{font-size:40px;background:linear-gradient(transparent 55%,#F6E7B4 55%)}.pa div{border-top:1px solid #22262E;margin-top:8px;padding-top:6px;font-size:14px;color:#22262E}
+.pb{background:#F1F6F5}.pb div{background:#0F766E;color:#fff;border-radius:14px;padding:16px;font-weight:800;text-align:center;margin-top:14px}.pb span{font-weight:800;color:#16323A;font-size:28px}
+.pc{background:#fff;font-family:Consolas,monospace}.pc div{display:grid;grid-template-columns:repeat(30,1fr);gap:2px;margin:6px 0}.pc div i{height:22px;background:#ECECE7}.pc div i.r{background:#D8362B}.pc div i.m{background:#EA8B83}.pc span{font-size:13px;color:#111}
+table{width:100%;border-collapse:collapse;background:#fff;font-size:14px}
+th,td{border:1px solid var(--line);padding:10px 12px;text-align:left;vertical-align:top}
+th{background:#EFEDE6}
+h2{margin-top:44px}
+.star{color:#B8860B;font-weight:700}
+.rec{background:#fff;border:2px solid #1B1D21;padding:18px 22px;margin-top:20px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Редизайн «Графика приступов»</h1>
+<p class="lead">Три направления для веба и Android-приложения. Во всех фон светлее текста, тёмной темы нет. Откройте каждую концепцию: в ней есть палитра, шрифты, десктопная версия, три экрана телефона и компоненты.</p>
+
+<div class="cards">
+  <a class="c" href="a-diary.html"><div class="pv pa"><b>19</b> октября<div>14:25 &nbsp; После работы за компьютером</div><div>08:10 &nbsp; <i>без комментария</i></div></div><h3>A — «Дневник»</h3><p>Бумага, чернила, линейки. Личная тетрадь, которую не стыдно показать врачу.</p><div class="go">Открыть →</div></a>
+  <a class="c" href="b-calm.html"><div class="pv pb"><span>2 дня назад</span><div>Записать приступ</div></div><h3>B — «Спокойный день»</h3><p>Одна большая кнопка и мягкая бирюзовая гамма. Главное действие — всегда под рукой.</p><div class="go">Открыть →</div></a>
+  <a class="c" href="c-chronicle.html"><div class="pv pc"><span>последние 30 дней</span><div id="x"></div><span><b>14:25</b> После работы</span></div><h3>C — «Хроника»</h3><p>Белая страница, линейки, моноширинное время и тепловая лента за 30 дней.</p><div class="go">Открыть →</div></a>
+</div>
+
+<a class="c" href="d-hybrid.html" style="border:2px solid #1B1D21"><div class="pv pa"><b>19</b> октября<div>08:10 &nbsp; 14:25 &nbsp; <span style="color:#2B4C9B;border-bottom:2px solid #2B4C9B">03:40 ✎</span></div></div><h3>★ D — «Дневник+» (гибрид)</h3><p>A + лента 30 дней из C + крупная кнопка из B. Журнал построен вокруг времени: комментарии почти не используются.</p><div class="go">Открыть →</div></a>
+
+<a class="c" href="e-calm-plus.html" style="border:2px solid #0F766E;max-width:380px"><div class="pv pb"><span>2 дня назад</span><div>Записать приступ</div></div><h3>E — «Спокойный день+» (B + лента из C)</h3><p>Концепция B с лентой 30 дней, итогами и отчётом за период; журнал — плитки времени.</p><div class="go">Открыть →</div></a>
+
+<h2>Сравнение</h2>
+<table>
+<tr><th></th><th>A — Дневник</th><th>B — Спокойный день</th><th>C — Хроника</th></tr>
+<tr><th>Выразительность</th><td>Высокая, тёплая</td><td>Средняя (знакомый «wellness»)</td><td>Самая высокая, строгая</td></tr>
+<tr><th>Удобство записи</th><td>Хорошее: «+ Записать» плавающая кнопка</td><td>Лучшее: огромная кнопка в центре</td><td>Хорошее: красная «+ Записать»</td></tr>
+<tr><th>Удобство чтения истории</th><td>Отличное: дата-якорь, много воздуха</td><td>Хорошее</td><td>Отличное: плотно + лента 30 дней</td></tr>
+<tr><th>Оригинальность</th><td>Высокая</td><td>Низкая–средняя</td><td>Высокая</td></tr>
+<tr><th>Сложность реализации</th><td>Низкая (почти нет карточек, теней)</td><td>Высокая (панель, неделя, шторка)</td><td>Средняя (лента, колонка итогов)</td></tr>
+<tr><th>Риск тона</th><td>Может показаться «несерьёзным»</td><td>Блок «дней без приступов» эмоционально сложен</td><td>Может показаться холодным</td></tr>
+<tr><th>Доступность (контраст)</th><td>Очень хорошая</td><td>Хорошая</td><td>Отличная</td></tr>
+</table>
+
+<div class="rec"><b class="star">★ Рекомендация:</b> взять основу концепции <b>A «Дневник»</b> (бумажный фон, линейки вместо карточек, дата-якорь, типографика), добавить из <b>C</b> тепловую ленту 30 дней и вынос экспорта в боковую колонку за период, из <b>B</b> — крупное действие «Записать» на телефоне. Подробности — в ответе Claude и в плане реализации.</div>
+</div>
+<script>
+var el=document.getElementById('x'),d=[0,0,1,0,0,0,2,0,0,1,0,0,0,0,0,1,0,0,2,0,0,0,0,0,3,0,0,1,0,2];
+d.forEach(function(n){var i=document.createElement('i');if(n==1)i.className='m';if(n>=2)i.className='r';el.appendChild(i)});
+</script>
+</body></html>

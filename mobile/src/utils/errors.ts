@@ -71,3 +71,12 @@ export function userMessage(error: ApiError): string {
             return 'Запись не найдена.';
     }
 }
+
+/** Общий текст для неожиданных (не ApiError) сбоев. */
+export const GENERIC_ERROR_TEXT = 'Сервер недоступен, попробуйте позже.';
+
+/** Текст ошибки действия (удаление, догрузка, экспорт): ApiError — по
+ *  kind, неожиданное — общий. */
+export function actionErrorText(error: unknown): string {
+    return error instanceof ApiError ? userMessage(error) : GENERIC_ERROR_TEXT;
+}

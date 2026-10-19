@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Form } from '@inertiajs/vue3';
 import { ref } from 'vue';
+import type { ComponentPublicInstance } from 'vue';
 import SeizureController from '@/actions/App/Http/Controllers/SeizureController';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
@@ -18,26 +19,44 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { SeizureRow } from '@/types/journal';
 
-const props = defineProps<{ row: SeizureRow }>();
+const props = defineProps<{
+    row: SeizureRow;
+    /** 'comment' — при открытии фокус сразу в поле комментария. */
+    focus?: 'comment';
+}>();
 
-const open = ref(false);
+// Управляемый (v-model:open из меню строки) либо самодостаточный (слот trigger).
+const open = defineModel<boolean>('open', { default: false });
+
+const commentInput = ref<ComponentPublicInstance | null>(null);
+
+function onOpenAutoFocus(event: Event): void {
+    if (props.focus !== 'comment') {
+        return;
+    }
+
+    event.preventDefault();
+    (commentInput.value?.$el as HTMLInputElement | undefined)?.focus();
+}
 </script>
 
 <template>
     <Dialog v-model:open="open">
-        <DialogTrigger as-child>
+        <DialogTrigger v-if="$slots.trigger" as-child>
             <slot name="trigger" />
         </DialogTrigger>
-        <DialogContent>
+        <DialogContent @open-auto-focus="onOpenAutoFocus">
             <Form
                 v-bind="SeizureController.update.form(props.row.id)"
                 :options="{ preserveScroll: true }"
                 @success="open = false"
-                class="space-y-6"
+                class="space-y-5"
                 v-slot="{ errors, processing }"
             >
                 <DialogHeader class="space-y-3">
-                    <DialogTitle>Редактировать запись</DialogTitle>
+                    <DialogTitle class="text-xl font-extrabold">
+                        Запись {{ props.row.time }}
+                    </DialogTitle>
                     <DialogDescription>
                         Измените дату, время и комментарий. Время указывается в
                         вашем часовом поясе.
@@ -45,7 +64,11 @@ const open = ref(false);
                 </DialogHeader>
 
                 <div class="grid gap-2">
-                    <Label for="occurred_at">Дата и время</Label>
+                    <Label
+                        for="occurred_at"
+                        class="text-xs font-bold tracking-wide text-muted-foreground uppercase"
+                        >Время</Label
+                    >
                     <Input
                         id="occurred_at"
                         type="datetime-local"
@@ -57,9 +80,14 @@ const open = ref(false);
                 </div>
 
                 <div class="grid gap-2">
-                    <Label for="comment">Комментарий</Label>
+                    <Label
+                        for="comment"
+                        class="text-xs font-bold tracking-wide text-muted-foreground uppercase"
+                        >Комментарий</Label
+                    >
                     <Input
                         id="comment"
+                        ref="commentInput"
                         name="comment"
                         :default-value="props.row.comment ?? ''"
                         maxlength="2000"
@@ -69,7 +97,7 @@ const open = ref(false);
 
                 <DialogFooter class="gap-2">
                     <DialogClose as-child>
-                        <Button variant="secondary" :disabled="processing">
+                        <Button variant="outline" :disabled="processing">
                             Отмена
                         </Button>
                     </DialogClose>

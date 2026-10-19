@@ -21,6 +21,24 @@ class SeizureApiTest extends TestCase
         parent::tearDown();
     }
 
+    public function test_summary_returns_thirty_days_and_period_totals(): void
+    {
+        $user = User::factory()->create();
+        Seizure::factory()->for($user)->create(['occurred_at' => CarbonImmutable::now('UTC')]);
+        Seizure::factory()->create(['occurred_at' => CarbonImmutable::now('UTC')]);
+        $this->actingAs($user);
+
+        $response = $this->getJson(route('api.v1.seizures.summary', ['timezone' => 'UTC']));
+
+        $response->assertOk();
+        $response->assertJsonCount(30, 'data.days');
+        $response->assertJsonPath('data.days.29.date', $response->json('data.today'));
+        $response->assertJsonPath('data.days.29.count', 1);
+        $response->assertJsonPath('data.period.total', 1);
+        $response->assertJsonPath('data.period.days_with_seizures', 1);
+        $response->assertJsonPath('data.period.from', null);
+    }
+
     public function test_user_can_store_and_list_and_delete_own_seizure(): void
     {
         $user = User::factory()->create();

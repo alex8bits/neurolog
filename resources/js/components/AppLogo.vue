@@ -1,19 +1,13 @@
 <script setup lang="ts">
-import { usePage } from '@inertiajs/vue3';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
-
-const name = usePage().props.name;
 </script>
 
 <template>
-    <div
-        class="flex aspect-square size-8 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground"
+    <!-- Фирменный значок: бирюзовый скруглённый квадрат с тремя линиями.
+         Размер задаётся классом носителя (по умолчанию 28 px). -->
+    <span
+        class="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground"
     >
-        <AppLogoIcon class="size-5 text-sidebar-primary-foreground" />
-    </div>
-    <div class="ml-1 grid flex-1 text-left text-sm">
-        <span class="mb-0.5 truncate leading-tight font-semibold">{{
-            name
-        }}</span>
-    </div>
+        <AppLogoIcon class="size-full" />
+    </span>
 </template>

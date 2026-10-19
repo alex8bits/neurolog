@@ -29,9 +29,9 @@ const passwordInput = useTemplateRef('passwordInput');
             description="Удалить аккаунт и все связанные данные"
         />
         <div
-            class="space-y-4 rounded-lg border border-red-100 bg-red-50 p-4 dark:border-red-200/10 dark:bg-red-700/10"
+            class="space-y-4 rounded-2xl border border-destructive/25 bg-destructive/5 p-4"
         >
-            <div class="relative space-y-0.5 text-red-600 dark:text-red-100">
+            <div class="relative space-y-0.5 text-destructive">
                 <p class="font-medium">Внимание</p>
                 <p class="text-sm">
                     Действуйте осторожно: это действие нельзя отменить.
@@ -80,7 +80,7 @@ const passwordInput = useTemplateRef('passwordInput');
                         <DialogFooter class="gap-2">
                             <DialogClose as-child>
                                 <Button
-                                    variant="secondary"
+                                    variant="outline"
                                     @click="
                                         () => {
                                             clearErrors();

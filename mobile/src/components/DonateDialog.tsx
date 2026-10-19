@@ -11,9 +11,12 @@ import {
     Modal,
     Pressable,
     StyleSheet,
-    Text,
     View,
 } from 'react-native';
+
+import { AppText } from '@/components/ui/AppText';
+import { OutlineButton } from '@/components/ui/OutlineButton';
+import { colors, radius, spacing } from '@/theme/tokens';
 
 /** Сборы добровольных пожертвований — внешние страницы, открываются
  *  в браузере устройства: Т-Банк и Сбер (ссылка Сбера — короткий адрес
@@ -52,22 +55,24 @@ export default function DonateDialog({
         >
             <View style={styles.overlay}>
                 <View style={styles.card}>
-                    <Text style={styles.title}>Поддержать проект</Text>
-                    <Text style={styles.hint}>Выберите, куда перейти:</Text>
+                    <AppText variant="heading" style={styles.title}>
+                        Поддержать проект
+                    </AppText>
+                    <AppText variant="label" color="muted" style={styles.hint}>
+                        Выберите, куда перейти:
+                    </AppText>
 
                     {DONATE_URLS.map((donate) => (
-                        <Pressable
+                        <OutlineButton
                             key={donate.url}
-                            accessibilityRole="button"
+                            title={donate.label}
                             accessibilityLabel={`Поддержать проект — ${donate.label}`}
                             style={styles.bank}
                             onPress={() => {
                                 onClose();
                                 void openDonateUrl(donate.url);
                             }}
-                        >
-                            <Text style={styles.bankLabel}>{donate.label}</Text>
-                        </Pressable>
+                        />
                     ))}
 
                     <Pressable
@@ -75,7 +80,9 @@ export default function DonateDialog({
                         style={styles.cancel}
                         onPress={onClose}
                     >
-                        <Text style={styles.cancelLabel}>Отмена</Text>
+                        <AppText variant="label" color="muted">
+                            Отмена
+                        </AppText>
                     </Pressable>
                 </View>
             </View>
@@ -86,49 +93,30 @@ export default function DonateDialog({
 const styles = StyleSheet.create({
     overlay: {
         alignItems: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: colors.overlay,
         flex: 1,
         justifyContent: 'center',
-        paddingHorizontal: 24,
+        paddingHorizontal: spacing.xxl,
     },
     card: {
-        backgroundColor: '#fff',
-        borderRadius: 16,
-        padding: 20,
+        backgroundColor: colors.surface,
+        borderRadius: radius.modal,
+        padding: spacing.xl,
         width: '100%',
     },
     title: {
-        color: '#000',
-        fontSize: 18,
-        fontWeight: '600',
-        marginBottom: 4,
+        marginBottom: spacing.xs,
         textAlign: 'center',
     },
     hint: {
-        color: '#666',
-        fontSize: 14,
-        marginBottom: 16,
+        marginBottom: spacing.lg,
         textAlign: 'center',
     },
     bank: {
-        alignItems: 'center',
-        borderColor: '#2f6fde',
-        borderRadius: 8,
-        borderWidth: 1,
-        marginBottom: 8,
-        paddingVertical: 12,
-    },
-    bankLabel: {
-        color: '#2f6fde',
-        fontSize: 16,
-        fontWeight: '600',
+        marginBottom: spacing.sm,
     },
     cancel: {
         alignItems: 'center',
-        paddingVertical: 8,
-    },
-    cancelLabel: {
-        color: '#666',
-        fontSize: 15,
+        paddingVertical: spacing.sm,
     },
 });

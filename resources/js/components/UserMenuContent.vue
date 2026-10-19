@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, router } from '@inertiajs/vue3';
-import { LogOut, Settings } from '@lucide/vue';
+import { Heart, LogOut, Settings, Smartphone } from '@lucide/vue';
 import {
     DropdownMenuGroup,
     DropdownMenuItem,
@@ -8,6 +8,11 @@ import {
     DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import UserInfo from '@/components/UserInfo.vue';
+import {
+    APP_DOWNLOAD_URL,
+    DONATE_URLS,
+    useAppDownload,
+} from '@/composables/useAppDownload';
 import { logout } from '@/routes';
 import { edit } from '@/routes/profile';
 import type { User } from '@/types';
@@ -21,6 +26,8 @@ const handleLogout = () => {
 };
 
 defineProps<Props>();
+
+const { appVersion } = useAppDownload();
 </script>
 
 <template>
@@ -29,6 +36,36 @@ defineProps<Props>();
             <UserInfo :user="user" :show-email="true" />
         </div>
     </DropdownMenuLabel>
+    <DropdownMenuSeparator />
+    <DropdownMenuGroup>
+        <!-- Обычные <a>, не Link: скачивание файла и внешние страницы сборов
+             не должны перехватываться Inertia-роутером. -->
+        <DropdownMenuItem v-if="appVersion" :as-child="true">
+            <a
+                class="block w-full cursor-pointer"
+                :href="APP_DOWNLOAD_URL"
+                download
+            >
+                <Smartphone class="mr-2 h-4 w-4" />
+                Скачать приложение (v{{ appVersion }})
+            </a>
+        </DropdownMenuItem>
+        <DropdownMenuItem
+            v-for="donate in DONATE_URLS"
+            :key="donate.url"
+            :as-child="true"
+        >
+            <a
+                class="block w-full cursor-pointer"
+                :href="donate.url"
+                target="_blank"
+                rel="noopener noreferrer"
+            >
+                <Heart class="mr-2 h-4 w-4" />
+                Поддержать проект ({{ donate.label }})
+            </a>
+        </DropdownMenuItem>
+    </DropdownMenuGroup>
     <DropdownMenuSeparator />
     <DropdownMenuGroup>
         <DropdownMenuItem :as-child="true">

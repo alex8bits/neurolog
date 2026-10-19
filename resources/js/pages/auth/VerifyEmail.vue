@@ -24,7 +24,7 @@ defineProps<{
 
     <div
         v-if="status === 'verification-link-sent'"
-        class="mb-4 text-center text-sm font-medium text-green-600"
+        class="mb-4 text-center text-sm font-medium text-primary"
     >
         Новая ссылка для подтверждения отправлена на email, указанный при
         регистрации.
@@ -35,7 +35,7 @@ defineProps<{
         class="space-y-6 text-center"
         v-slot="{ processing }"
     >
-        <Button :disabled="processing" variant="secondary">
+        <Button :disabled="processing" size="lg" variant="secondary">
             <Spinner v-if="processing" />
             Отправить письмо повторно
         </Button>

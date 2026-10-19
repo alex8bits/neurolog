@@ -2,16 +2,22 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
+    KeyboardAvoidingView,
+    Platform,
     Pressable,
+    ScrollView,
     StyleSheet,
-    Switch,
-    Text,
-    TextInput,
     View,
 } from 'react-native';
 
 import { createSeizure } from '@/api/seizures';
+import { AppText } from '@/components/ui/AppText';
+import { PickerField } from '@/components/ui/PickerField';
+import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { TextField } from '@/components/ui/TextField';
 import { deviceTimezone } from '@/config/timezone';
+import { colors, radius, spacing } from '@/theme/tokens';
 import { ApiError, userMessage } from '@/utils/errors';
 import {
     formatHm,
@@ -29,30 +35,34 @@ const COMMENT_MAX_LENGTH = 2000;
 const FUTURE_TOLERANCE_MINUTES = 5;
 
 /**
- * Запись приступа. По умолчанию — «сейчас»: occurred_at не шлём, сервер
- * ставит текущий момент UTC сам, пояс берём устройства. Переключатель
- * «Точное время» — запись задним числом: нативные пикеры даты/времени, в
- * теле POST уходит наивная строка occurred_at (YYYY-MM-DDTHH:mm:ss) +
- * timezone, сервер парсит её в поданном поясе и нормализует в UTC
- * (SeizureMomentNormalizer.php). Будущее дальше now+5 минут блокируется
- * клиентом до запроса, серверная 422 с errors.occurred_at — страховка на
- * расхождение часов. После 201 уходим назад — список перечитается
- * фокус-эффектом экрана журнала.
+ * Запись приступа — шторка снизу (transparentModal, см. _layout.tsx).
+ * Сегмент «Сейчас»: occurred_at не шлём, сервер ставит текущий момент UTC
+ * сам, пояс берём устройства. Сегмент «Другое время» — запись задним числом:
+ * нативные пикеры даты/времени, в теле POST уходит наивная строка
+ * occurred_at (YYYY-MM-DDTHH:mm:ss) + timezone, сервер парсит её в поданном
+ * поясе и нормализует в UTC (SeizureMomentNormalizer.php). Будущее дальше
+ * now+5 минут блокируется клиентом до запроса, серверная 422 с
+ * errors.occurred_at — страховка на расхождение часов. Комментарий уходит,
+ * только если поле раскрыто («+ комментарий») и заполнено. После 201 уходим
+ * назад — список перечитается фокус-эффектом экрана журнала.
  */
 export default function NewSeizureScreen() {
     const router = useRouter();
 
     const [comment, setComment] = useState('');
+
+    /** Раскрыто ли поле комментария. */
+    const [commentOpen, setCommentOpen] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>(
         {},
     );
 
-    /** Включён ли режим «Точное время» (запись задним числом). */
+    /** Включён ли режим «Другое время» (запись задним числом). */
     const [exactTime, setExactTime] = useState(false);
 
-    /** Значение пикеров даты/времени; null, пока «Точное время» выключено. */
+    /** Значение пикеров даты/времени; null, пока «Другое время» выключено. */
     const [moment, setMoment] = useState<Date | null>(null);
 
     /** Открытый диалог пикера: дата или время; null — закрыт. */
@@ -61,6 +71,9 @@ export default function NewSeizureScreen() {
     /** «Потолок» пикера (now+5 минут), фиксируется при открытии диалога:
      *  Date.now() в рендере запрещён react-hooks/purity. */
     const [pickerMax, setPickerMax] = useState<Date | null>(null);
+
+    /** Время на подписи под кнопкой: фиксируется при открытии шторки. */
+    const [openedAt] = useState(() => formatHm(new Date()));
 
     /** Ввод после ошибки: чистим сообщение формы и запись поля. */
     function clearError(field: string): void {
@@ -102,7 +115,7 @@ export default function NewSeizureScreen() {
         setFormError('Сервер недоступен, попробуйте позже.');
     }
 
-    /** Переключение «Точного времени»: включение — старт с «сейчас»,
+    /** Переключение «Другого времени»: включение — старт с «сейчас»,
      *  округлённого до минуты; выключение — значение пикеров и ошибку
      *  occurred_at отбрасываем. */
     function toggleExactTime(next: boolean): void {
@@ -149,7 +162,10 @@ export default function NewSeizureScreen() {
         try {
             await createSeizure({
                 timezone: deviceTimezone(),
-                comment: comment.trim() === '' ? undefined : comment.trim(),
+                comment:
+                    !commentOpen || comment.trim() === ''
+                        ? undefined
+                        : comment.trim(),
                 ...(exactTime && moment !== null
                     ? { occurred_at: toNaiveLocalIso(moment) }
                     : {}),
@@ -165,257 +181,231 @@ export default function NewSeizureScreen() {
 
     return (
         <View style={styles.screen}>
-            {!exactTime ? (
-                <Text style={styles.hint}>Будет записано текущее время</Text>
-            ) : null}
+            <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Закрыть"
+                style={styles.backdrop}
+                onPress={() => {
+                    router.back();
+                }}
+            />
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            >
+                <View style={styles.sheet}>
+                    <ScrollView
+                        keyboardShouldPersistTaps="handled"
+                        contentContainerStyle={styles.content}
+                    >
+                        <AppText variant="title" style={styles.title}>
+                            Новая запись
+                        </AppText>
 
-            <View style={styles.timeRow}>
-                <Text style={styles.timeRowLabel}>Точное время</Text>
-                <Switch
-                    accessibilityLabel="Точное время"
-                    value={exactTime}
-                    onValueChange={toggleExactTime}
-                />
-            </View>
-
-            {exactTime && moment !== null ? (
-                <View style={styles.field}>
-                    <View style={styles.momentRow}>
-                        <Pressable
-                            accessibilityRole="button"
-                            style={[
-                                styles.momentButton,
-                                fieldErrors.occurred_at &&
-                                    styles.momentButtonInvalid,
+                        <SegmentedControl
+                            options={[
+                                { value: 'now', label: 'Сейчас' },
+                                { value: 'other', label: 'Другое время' },
                             ]}
-                            onPress={() => {
-                                openPicker('date');
+                            value={exactTime ? 'other' : 'now'}
+                            onChange={(mode) => {
+                                toggleExactTime(mode === 'other');
                             }}
-                        >
-                            <Text style={styles.momentButtonLabel}>
-                                Дата: {formatYmd(moment)}
-                            </Text>
-                        </Pressable>
-                        <Pressable
-                            accessibilityRole="button"
-                            style={[
-                                styles.momentButton,
-                                fieldErrors.occurred_at &&
-                                    styles.momentButtonInvalid,
-                            ]}
-                            onPress={() => {
-                                openPicker('time');
-                            }}
-                        >
-                            <Text style={styles.momentButtonLabel}>
-                                Время: {formatHm(moment)}
-                            </Text>
-                        </Pressable>
-                    </View>
-                    {fieldErrors.occurred_at ? (
-                        <Text style={styles.fieldError}>
-                            {fieldErrors.occurred_at.join(' ')}
-                        </Text>
-                    ) : null}
-                </View>
-            ) : null}
+                            style={styles.segments}
+                        />
 
-            {pickerMode !== null && moment !== null && pickerMax !== null ? (
-                <DateTimePicker
-                    value={moment}
-                    mode={pickerMode}
-                    display="default"
-                    is24Hour={true}
-                    maximumDate={pickerMax}
-                    onChange={(event, date) => {
-                        if (event.type === 'set' && date !== undefined) {
-                            // Мердж пикеров в один Date: диалог даты меняет
-                            // дату, диалог времени — время.
-                            const next = new Date(moment);
+                        {exactTime && moment !== null ? (
+                            <View style={styles.field}>
+                                <View style={styles.momentRow}>
+                                    <PickerField
+                                        label="Дата"
+                                        value={formatYmd(moment)}
+                                        invalid={!!fieldErrors.occurred_at}
+                                        onPress={() => {
+                                            openPicker('date');
+                                        }}
+                                    />
+                                    <PickerField
+                                        label="Время"
+                                        value={formatHm(moment)}
+                                        invalid={!!fieldErrors.occurred_at}
+                                        onPress={() => {
+                                            openPicker('time');
+                                        }}
+                                    />
+                                </View>
+                                {fieldErrors.occurred_at ? (
+                                    <AppText
+                                        variant="caption"
+                                        color="danger"
+                                        style={styles.fieldError}
+                                    >
+                                        {fieldErrors.occurred_at.join(' ')}
+                                    </AppText>
+                                ) : null}
+                            </View>
+                        ) : null}
 
-                            if (pickerMode === 'date') {
-                                next.setFullYear(
-                                    date.getFullYear(),
-                                    date.getMonth(),
-                                    date.getDate(),
-                                );
-                            } else {
-                                next.setHours(
-                                    date.getHours(),
-                                    date.getMinutes(),
-                                    0,
-                                    0,
-                                );
+                        {pickerMode !== null &&
+                        moment !== null &&
+                        pickerMax !== null ? (
+                            <DateTimePicker
+                                value={moment}
+                                mode={pickerMode}
+                                display="default"
+                                is24Hour={true}
+                                maximumDate={pickerMax}
+                                onChange={(event, date) => {
+                                    if (
+                                        event.type === 'set' &&
+                                        date !== undefined
+                                    ) {
+                                        // Мердж пикеров в один Date: диалог даты
+                                        // меняет дату, диалог времени — время.
+                                        const next = new Date(moment);
+
+                                        if (pickerMode === 'date') {
+                                            next.setFullYear(
+                                                date.getFullYear(),
+                                                date.getMonth(),
+                                                date.getDate(),
+                                            );
+                                        } else {
+                                            next.setHours(
+                                                date.getHours(),
+                                                date.getMinutes(),
+                                                0,
+                                                0,
+                                            );
+                                        }
+
+                                        setMoment(next);
+                                        clearError('occurred_at');
+                                    }
+
+                                    // 'dismissed' — отменённый диалог, значение не меняем.
+                                    setPickerMode(null);
+                                }}
+                            />
+                        ) : null}
+
+                        {commentOpen ? (
+                            <View style={styles.field}>
+                                <TextField
+                                    label="Комментарий"
+                                    value={comment}
+                                    multiline
+                                    error={fieldErrors.comment?.join(' ')}
+                                    onChangeText={(value) => {
+                                        setComment(value);
+                                        clearError('comment');
+                                    }}
+                                    placeholder="Необязательно"
+                                    maxLength={COMMENT_MAX_LENGTH}
+                                    containerStyle={styles.fieldReset}
+                                />
+                                <AppText
+                                    variant="caption"
+                                    color="muted"
+                                    style={styles.counter}
+                                >
+                                    {comment.length}/{COMMENT_MAX_LENGTH}
+                                </AppText>
+                            </View>
+                        ) : (
+                            <Pressable
+                                accessibilityRole="button"
+                                style={styles.addComment}
+                                onPress={() => {
+                                    setCommentOpen(true);
+                                }}
+                            >
+                                <AppText color="primary" variant="label">
+                                    + комментарий
+                                </AppText>
+                            </Pressable>
+                        )}
+
+                        {formError ? (
+                            <AppText
+                                color="danger"
+                                variant="label"
+                                style={styles.formError}
+                            >
+                                {formError}
+                            </AppText>
+                        ) : null}
+
+                        <PrimaryButton
+                            title={
+                                submitting
+                                    ? 'Записываем…'
+                                    : exactTime
+                                      ? 'Записать'
+                                      : 'Записать сейчас'
                             }
-
-                            setMoment(next);
-                            clearError('occurred_at');
-                        }
-
-                        // 'dismissed' — отменённый диалог, значение не меняем.
-                        setPickerMode(null);
-                    }}
-                />
-            ) : null}
-
-            <View style={styles.field}>
-                <TextInput
-                    style={[
-                        styles.input,
-                        fieldErrors.comment && styles.inputInvalid,
-                    ]}
-                    value={comment}
-                    multiline
-                    onChangeText={(value) => {
-                        setComment(value);
-                        clearError('comment');
-                    }}
-                    placeholder="Комментарий (необязательно)"
-                    maxLength={COMMENT_MAX_LENGTH}
-                />
-                {fieldErrors.comment ? (
-                    <Text style={styles.fieldError}>
-                        {fieldErrors.comment.join(' ')}
-                    </Text>
-                ) : null}
-                <Text style={styles.counter}>
-                    {comment.length}/{COMMENT_MAX_LENGTH}
-                </Text>
-            </View>
-
-            {formError ? (
-                <Text style={styles.formError}>{formError}</Text>
-            ) : null}
-
-            <View style={styles.actions}>
-                <Pressable
-                    accessibilityRole="button"
-                    style={styles.cancel}
-                    onPress={() => {
-                        router.back();
-                    }}
-                >
-                    <Text style={styles.cancelLabel}>Отменить</Text>
-                </Pressable>
-                <Pressable
-                    accessibilityRole="button"
-                    accessibilityState={{ disabled: submitting }}
-                    style={[styles.submit, submitting && styles.submitDisabled]}
-                    disabled={submitting}
-                    onPress={onSubmit}
-                >
-                    <Text style={styles.submitLabel}>
-                        {submitting ? 'Записываем…' : 'Записать'}
-                    </Text>
-                </Pressable>
-            </View>
+                            disabled={submitting}
+                            onPress={onSubmit}
+                            style={styles.submit}
+                        />
+                        {!exactTime ? (
+                            <AppText
+                                variant="caption"
+                                color="muted"
+                                style={styles.submitHint}
+                            >
+                                {openedAt} · закроется после записи
+                            </AppText>
+                        ) : null}
+                    </ScrollView>
+                </View>
+            </KeyboardAvoidingView>
         </View>
     );
 }
 
 const styles = StyleSheet.create({
     screen: {
-        backgroundColor: '#fff',
         flex: 1,
-        paddingHorizontal: 24,
-        paddingTop: 16,
+        justifyContent: 'flex-end',
     },
-    hint: {
-        color: '#333',
-        fontSize: 14,
-        marginBottom: 12,
+    backdrop: {
+        position: 'absolute',
+        top: 0,
+        right: 0,
+        bottom: 0,
+        left: 0,
+        backgroundColor: colors.overlay,
     },
-    timeRow: {
-        alignItems: 'center',
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 16,
+    sheet: {
+        backgroundColor: colors.surface,
+        borderTopLeftRadius: radius.modal,
+        borderTopRightRadius: radius.modal,
+        maxHeight: '90%',
+        elevation: 16,
+        shadowColor: colors.text,
+        shadowOpacity: 0.18,
+        shadowRadius: 16,
+        shadowOffset: { width: 0, height: -4 },
     },
-    timeRowLabel: {
-        color: '#333',
-        fontSize: 16,
+    content: {
+        paddingHorizontal: spacing.xxl,
+        paddingTop: spacing.xl,
+        paddingBottom: spacing.xxl,
     },
-    momentRow: {
-        flexDirection: 'row',
-        gap: 12,
+    title: { marginBottom: spacing.lg },
+    segments: { marginBottom: spacing.lg },
+    field: { marginBottom: spacing.md },
+    fieldReset: { marginBottom: 0 },
+    momentRow: { flexDirection: 'row', gap: spacing.md },
+    fieldError: { marginTop: spacing.xs },
+    counter: { marginTop: spacing.xs, textAlign: 'right' },
+    addComment: {
+        alignSelf: 'flex-start',
+        minHeight: 44,
+        justifyContent: 'center',
+        marginBottom: spacing.sm,
     },
-    momentButton: {
-        alignItems: 'center',
-        borderColor: '#ccc',
-        borderRadius: 8,
-        borderWidth: 1,
-        flex: 1,
-        paddingVertical: 12,
-    },
-    momentButtonInvalid: {
-        borderColor: '#d32f2f',
-    },
-    momentButtonLabel: {
-        color: '#000',
-        fontSize: 16,
-    },
-    field: {
-        marginBottom: 16,
-    },
-    input: {
-        borderColor: '#ccc',
-        borderRadius: 8,
-        borderWidth: 1,
-        fontSize: 16,
-        minHeight: 96,
-        paddingHorizontal: 12,
-        paddingVertical: 10,
-    },
-    inputInvalid: {
-        borderColor: '#d32f2f',
-    },
-    fieldError: {
-        color: '#d32f2f',
-        fontSize: 13,
-        marginTop: 4,
-    },
-    counter: {
-        color: '#333',
-        fontSize: 13,
-        marginTop: 4,
-        textAlign: 'right',
-    },
-    formError: {
-        color: '#d32f2f',
-        fontSize: 14,
-        marginBottom: 12,
-        textAlign: 'center',
-    },
-    actions: {
-        flexDirection: 'row',
-        gap: 12,
-    },
-    cancel: {
-        alignItems: 'center',
-        borderColor: '#ccc',
-        borderRadius: 8,
-        borderWidth: 1,
-        flex: 1,
-        paddingVertical: 12,
-    },
-    cancelLabel: {
-        color: '#000',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    submit: {
-        alignItems: 'center',
-        backgroundColor: '#2f6fde',
-        borderRadius: 8,
-        flex: 1,
-        paddingVertical: 12,
-    },
-    submitDisabled: {
-        opacity: 0.6,
-    },
-    submitLabel: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
-    },
+    formError: { marginBottom: spacing.md, textAlign: 'center' },
+    submit: { minHeight: 56 },
+    submitHint: { marginTop: spacing.sm, textAlign: 'center' },
 });

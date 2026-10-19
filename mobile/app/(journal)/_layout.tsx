@@ -1,33 +1,52 @@
 import { Stack } from 'expo-router';
 
+import { colors, fontFamily } from '@/theme/tokens';
+
+/** Нативный заголовок в палитре «Спокойный день+». */
+const headerOptions = {
+    headerShown: true,
+    headerShadowVisible: false,
+    headerTintColor: colors.text,
+    headerStyle: { backgroundColor: colors.background },
+    headerTitleStyle: {
+        color: colors.text,
+        fontFamily: fontFamily.semibold,
+    },
+    contentStyle: { backgroundColor: colors.background },
+} as const;
+
 /**
- * Группа «Журнал» — владелец маршрута «/». На index шапка своя (в контенте,
- * консистентно с (auth)); edit, email-doctor, feedback, new и settings
- * включают нативный header со back точечными Stack.Screen поверх
- * screenOptions.
+ * Группа «Журнал» — экраны поверх вкладок (маршрут «/» в группе (tabs)):
+ * edit, email-doctor, feedback и settings — нативный header со back;
+ * new — шторка снизу (transparentModal) без заголовка.
  */
 export default function JournalLayout() {
     return (
         <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen
                 name="edit"
-                options={{ headerShown: true, title: 'Редактирование записи' }}
+                options={{ ...headerOptions, title: 'Редактирование записи' }}
             />
             <Stack.Screen
                 name="email-doctor"
-                options={{ headerShown: true, title: 'Отправить доктору' }}
+                options={{ ...headerOptions, title: 'Отправить доктору' }}
             />
             <Stack.Screen
                 name="feedback"
-                options={{ headerShown: true, title: 'Обратная связь' }}
+                options={{ ...headerOptions, title: 'Обратная связь' }}
             />
             <Stack.Screen
                 name="new"
-                options={{ headerShown: true, title: 'Новая запись' }}
+                options={{
+                    headerShown: false,
+                    presentation: 'transparentModal',
+                    animation: 'slide_from_bottom',
+                    contentStyle: { backgroundColor: 'transparent' },
+                }}
             />
             <Stack.Screen
                 name="settings"
-                options={{ headerShown: true, title: 'Настройки' }}
+                options={{ ...headerOptions, title: 'Настройки' }}
             />
         </Stack>
     );

@@ -1,6 +1,6 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
     KeyboardAvoidingView,
     Platform,
@@ -10,21 +10,25 @@ import {
     View,
 } from 'react-native';
 
-import { createSeizure } from '@/api/seizures';
+import { useAuth } from '@/auth/AuthContext';
 import { AppText } from '@/components/ui/AppText';
 import { PickerField } from '@/components/ui/PickerField';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { TextField } from '@/components/ui/TextField';
-import { deviceTimezone } from '@/config/timezone';
+import { recordSeizure } from '@/offline/sync';
 import { colors, radius, spacing } from '@/theme/tokens';
-import { ApiError, userMessage } from '@/utils/errors';
+import {
+    ApiError,
+    GENERIC_ERROR_TEXT,
+    recordRejectedText,
+    userMessage,
+} from '@/utils/errors';
 import {
     formatHm,
     formatYmd,
     isBeyondNowPlusMinutes,
     startOfMinute,
-    toNaiveLocalIso,
 } from '@/utils/time';
 
 /** Серверный лимит комментария: comment nullable|string|max:2000. */
@@ -36,15 +40,17 @@ const FUTURE_TOLERANCE_MINUTES = 5;
 
 /**
  * Запись приступа — шторка снизу (transparentModal, см. _layout.tsx).
- * Сегмент «Сейчас»: occurred_at не шлём, сервер ставит текущий момент UTC
- * сам, пояс берём устройства. Сегмент «Другое время» — запись задним числом:
- * нативные пикеры даты/времени, в теле POST уходит наивная строка
- * occurred_at (YYYY-MM-DDTHH:mm:ss) + timezone, сервер парсит её в поданном
- * поясе и нормализует в UTC (SeizureMomentNormalizer.php). Будущее дальше
- * now+5 минут блокируется клиентом до запроса, серверная 422 с
- * errors.occurred_at — страховка на расхождение часов. Комментарий уходит,
- * только если поле раскрыто («+ комментарий») и заполнено. После 201 уходим
- * назад — список перечитается фокус-эффектом экрана журнала.
+ * Запись идёт через очередь (recordSeizure): occurred_at уходит UTC-строкой
+ * с `Z` + timezone устройства + client_id. Сегмент «Сейчас» — момент
+ * нажатия кнопки «Записать сейчас». Сегмент «Другое время» — запись задним
+ * числом: нативные пикеры даты/времени, уходит выбранный момент. Будущее
+ * дальше now+5 минут блокируется клиентом до запроса, серверная 422 с
+ * errors.occurred_at — страховка на расхождение часов (запись при этом
+ * снимается из очереди, ошибка показывается в форме). Комментарий уходит,
+ * только если поле раскрыто («+ комментарий») и заполнено. Сервер принял
+ * запись или она сохранена на устройстве (нет связи — уйдёт при досылке) —
+ * уходим назад, журнал перерисуется из локального стора. Стор не готов —
+ * общая ошибка формы, шторка остаётся открытой.
  *
  * Стартовый сегмент: без параметра — «Сейчас»; с `mode=other` (ссылка
  * «Другое время» под кнопкой записи) сразу «Другое время» с пикерами,
@@ -52,6 +58,7 @@ const FUTURE_TOLERANCE_MINUTES = 5;
  */
 export default function NewSeizureScreen() {
     const router = useRouter();
+    const { user } = useAuth();
     const { mode } = useLocalSearchParams<{
         mode?: string | string[];
     }>();
@@ -63,6 +70,19 @@ export default function NewSeizureScreen() {
     /** Раскрыто ли поле комментария. */
     const [commentOpen, setCommentOpen] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+
+    /** Отправка в полёте: два тапа в одном кадре видят ещё старый
+     *  submitting, а каждый recordSeizure — новый client_id и новая запись. */
+    const inFlight = useRef(false);
+    const mounted = useRef(true);
+
+    useEffect(() => {
+        mounted.current = true;
+
+        return () => {
+            mounted.current = false;
+        };
+    }, []);
     const [formError, setFormError] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>(
         {},
@@ -104,7 +124,8 @@ export default function NewSeizureScreen() {
     }
 
     /** Маппинг ApiError на состояние экрана: validation — подсветка
-     *  поля comment, остальное — сообщение формы. */
+     *  полей, 422 без ошибок полей — «Сервер не принял запись.», остальное
+     *  — сообщение формы. */
     function applyError(error: unknown): void {
         if (error instanceof ApiError) {
             if (
@@ -117,13 +138,17 @@ export default function NewSeizureScreen() {
                 return;
             }
 
-            setFormError(userMessage(error));
+            setFormError(
+                error.kind === 'validation' || error.kind === 'form'
+                    ? recordRejectedText(error)
+                    : userMessage(error),
+            );
 
             return;
         }
 
         // Неожиданная ошибка — не крашимся, показываем общий текст.
-        setFormError('Сервер недоступен, попробуйте позже.');
+        setFormError(GENERIC_ERROR_TEXT);
     }
 
     /** Переключение «Другого времени»: включение — старт с «сейчас»,
@@ -151,6 +176,10 @@ export default function NewSeizureScreen() {
     // точного времени; обязательных полей нет, длина комментария
     // ограничена maxLength самого TextInput.
     async function onSubmit(): Promise<void> {
+        if (inFlight.current) {
+            return;
+        }
+
         if (
             exactTime &&
             moment !== null &&
@@ -166,27 +195,55 @@ export default function NewSeizureScreen() {
             return;
         }
 
+        inFlight.current = true;
+        let closing = false;
+
         setSubmitting(true);
         setFormError(null);
         setFieldErrors({});
 
         try {
-            await createSeizure({
-                timezone: deviceTimezone(),
+            const result = await recordSeizure({
+                occurredAt: exactTime && moment !== null ? moment : new Date(),
                 comment:
                     !commentOpen || comment.trim() === ''
-                        ? undefined
+                        ? null
                         : comment.trim(),
-                ...(exactTime && moment !== null
-                    ? { occurred_at: toNaiveLocalIso(moment) }
-                    : {}),
+                owner: user?.email,
             });
 
-            router.back();
+            if (result.kind === 'sent' || result.kind === 'queued') {
+                // Шторка закрывается: кнопку не разблокируем, флаг не
+                // снимаем — до размонтирования второй записи не будет.
+                closing = true;
+                router.back();
+
+                return;
+            }
+
+            if (!mounted.current) {
+                return;
+            }
+
+            if (result.kind === 'rejected') {
+                applyError(result.error);
+
+                return;
+            }
+
+            setFormError(GENERIC_ERROR_TEXT);
         } catch (error) {
-            applyError(error);
+            if (mounted.current) {
+                applyError(error);
+            }
         } finally {
-            setSubmitting(false);
+            if (!closing) {
+                inFlight.current = false;
+
+                if (mounted.current) {
+                    setSubmitting(false);
+                }
+            }
         }
     }
 

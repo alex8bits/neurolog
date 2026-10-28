@@ -42,6 +42,12 @@ export type RecordResult =
 export interface RecordInput {
     occurredAt: Date;
     comment: string | null;
+
+    /** Email текущего пользователя. Задан — запись ждёт стор именно этого
+     *  владельца: после истёкшей сессии A и входа под B экран может
+     *  позвать recordSeizure раньше, чем провайдер загрузит стор B, и без
+     *  проверки запись ушла бы в очередь A (и стёрлась бы при loadOwner(B)). */
+    owner?: string;
 }
 
 const send: SendItem = (item) =>
@@ -64,12 +70,27 @@ const sameEmail = (a: string, b: string) =>
 const STORE_WAIT_MS = 10_000;
 
 /**
- * Ждёт, пока стор станет loaded. Нужен на холодном старте: эффекты экрана
- * (/quick) срабатывают раньше эффекта корневого провайдера, который
- * запускает loadOwner. false — не дождались за timeoutMs.
+ * Ждёт, пока стор станет loaded (а при заданном owner — загружен именно
+ * для этого владельца). Нужен на холодном старте и после смены аккаунта:
+ * эффекты экрана (/quick) срабатывают раньше эффекта корневого
+ * провайдера, который запускает loadOwner. false — не дождались за
+ * timeoutMs.
  */
-function waitForStore(timeoutMs: number): Promise<boolean> {
-    if (getSnapshot().loaded) {
+function waitForStore(timeoutMs: number, owner?: string): Promise<boolean> {
+    const ready = (): boolean => {
+        const snapshot = getSnapshot();
+
+        if (!snapshot.loaded) {
+            return false;
+        }
+
+        return (
+            owner === undefined ||
+            (snapshot.owner !== null && sameEmail(snapshot.owner, owner))
+        );
+    };
+
+    if (ready()) {
         return Promise.resolve(true);
     }
 
@@ -83,7 +104,7 @@ function waitForStore(timeoutMs: number): Promise<boolean> {
         const timer = setTimeout(() => finish(false), timeoutMs);
 
         const unsubscribe = subscribe(() => {
-            if (getSnapshot().loaded) {
+            if (ready()) {
                 finish(true);
             }
         });
@@ -243,10 +264,11 @@ function hasQueued(owner: string, exceptClientId: string): boolean {
  * Записывает приступ: сначала в outbox на диск, затем одна попытка
  * отправить именно эту запись. 2xx — sent, 422 — rejected (запись снята),
  * прочее — queued (уйдёт следующим flush). Если досылка уже идёт —
- * сразу queued, а после текущего прохода будет ещё один.
+ * сразу queued, а после текущего прохода будет ещё один. С input.owner
+ * запись ждёт стор этого владельца (см. RecordInput.owner).
  */
 export async function recordSeizure(input: RecordInput): Promise<RecordResult> {
-    if (!(await waitForStore(STORE_WAIT_MS))) {
+    if (!(await waitForStore(STORE_WAIT_MS, input.owner))) {
         return { kind: 'unavailable' };
     }
 

@@ -2,17 +2,16 @@ import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
-import { createSeizure } from '@/api/seizures';
 import type { Seizure } from '@/api/types';
+import { useAuth } from '@/auth/AuthContext';
 import { rowTimeLabel } from '@/components/journal/SeizureRow';
 import { AppText } from '@/components/ui/AppText';
-import { deviceTimezone } from '@/config/timezone';
+import { recordSeizure } from '@/offline/sync';
 import { colors, fontFamily, radius, spacing } from '@/theme/tokens';
-import { ApiError, userMessage } from '@/utils/errors';
+import { GENERIC_ERROR_TEXT, recordRejectedText } from '@/utils/errors';
+import { formatHm } from '@/utils/time';
 
-const GENERIC_ERROR_TEXT = 'Сервер недоступен, попробуйте позже.';
-
-/** Сколько висит строка «Записано в …». */
+/** Сколько висит строка «Записано в …» / «Сохранено на устройстве …». */
 const DONE_VISIBLE_MS = 5000;
 
 type Phase = 'idle' | 'sending' | 'done' | 'error';
@@ -22,11 +21,20 @@ type Props = {
     onRecorded: () => void;
 };
 
-/** Главная кнопка «Записать приступ»: запись «сейчас» одним тапом. */
+/**
+ * Главная кнопка «Записать приступ»: запись «сейчас» одним тапом через
+ * очередь (recordSeizure) с моментом нажатия. Сервер принял — «Записано в
+ * HH:mm» и ссылка «Изменить время»; нет связи — «Сохранено на устройстве
+ * в HH:mm…» без ссылки (у записи из очереди ещё нет id на сервере).
+ */
 export function RecordButton({ onRecorded }: Props) {
     const router = useRouter();
+    const { user } = useAuth();
     const [phase, setPhase] = useState<Phase>('idle');
+
+    /** Запись, принятая сервером; null — сохранена только на устройстве. */
     const [created, setCreated] = useState<Seizure | null>(null);
+    const [doneText, setDoneText] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const inFlight = useRef(false);
@@ -59,13 +67,43 @@ export function RecordButton({ onRecorded }: Props) {
         setError(null);
 
         try {
-            const seizure = await createSeizure({ timezone: deviceTimezone() });
+            const occurredAt = new Date();
+            const result = await recordSeizure({
+                occurredAt,
+                comment: null,
+                owner: user?.email,
+            });
 
             if (!mounted.current) {
                 return;
             }
 
-            setCreated(seizure);
+            if (result.kind === 'rejected') {
+                setError(recordRejectedText(result.error));
+                setPhase('error');
+
+                return;
+            }
+
+            if (result.kind === 'unavailable') {
+                setError(GENERIC_ERROR_TEXT);
+                setPhase('error');
+
+                return;
+            }
+
+            if (result.kind === 'sent') {
+                setCreated(result.seizure);
+                setDoneText(
+                    `Записано в ${rowTimeLabel(result.seizure.occurred_at)}`,
+                );
+            } else {
+                setCreated(null);
+                setDoneText(
+                    `Сохранено на устройстве в ${formatHm(occurredAt)} — отправим при подключении`,
+                );
+            }
+
             setPhase('done');
             timer.current = setTimeout(() => {
                 setPhase('idle');
@@ -77,9 +115,8 @@ export function RecordButton({ onRecorded }: Props) {
                 return;
             }
 
-            setError(
-                e instanceof ApiError ? userMessage(e) : GENERIC_ERROR_TEXT,
-            );
+            console.warn('RecordButton: запись не удалась', e);
+            setError(GENERIC_ERROR_TEXT);
             setPhase('error');
         } finally {
             inFlight.current = false;
@@ -120,9 +157,9 @@ export function RecordButton({ onRecorded }: Props) {
                 )}
             </Pressable>
 
-            {phase === 'done' && created !== null ? (
+            {phase === 'done' && doneText !== null ? (
                 <AppText variant="label" color="ok" style={styles.status}>
-                    {`Записано в ${rowTimeLabel(created.occurred_at)}`}
+                    {doneText}
                 </AppText>
             ) : null}
             {phase === 'done' && created !== null ? (

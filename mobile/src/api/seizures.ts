@@ -47,6 +47,41 @@ export async function listSeizures(
     );
 }
 
+/** Размер страницы окна журнала — максимум сервера (IndexSeizureRequest). */
+const WINDOW_PER_PAGE = 100;
+
+/**
+ * Все записи за [from, to] (окно журнала 30 дней): GET /seizures по
+ * страницам до last_page. Дубли по id между страницами (окно страницы
+ * сдвинулось из-за новой записи) выбрасываются; порядок — как от сервера.
+ */
+export async function listSeizureWindow(params: {
+    timezone: string;
+    from: string;
+    to: string;
+}): Promise<Seizure[]> {
+    const byId = new Map<number, Seizure>();
+    let page = 1;
+    let lastPage = 1;
+
+    do {
+        const response = await apiFetch<SeizureListResponse>(
+            `/seizures?per_page=${WINDOW_PER_PAGE}&${periodQuery(params)}&page=${page}`,
+        );
+
+        for (const seizure of response.data) {
+            if (!byId.has(seizure.id)) {
+                byId.set(seizure.id, seizure);
+            }
+        }
+
+        lastPage = response.meta.last_page;
+        page = response.meta.current_page + 1;
+    } while (page <= lastPage);
+
+    return [...byId.values()];
+}
+
 /** GET /seizures/summary: лента 30 дней и итоги периода (тот же periodQuery,
  *  что у списка). */
 export async function fetchSummary(

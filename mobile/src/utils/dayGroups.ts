@@ -11,11 +11,11 @@ import { formatYmd, parseUtcIso } from '@/utils/time';
 
 /** Группа «один локальный календарный день»: key — `Y-m-d`, day — локальная
  *  полночь дня (сырьё для formatDayTitle), записи — в порядке сервера. */
-export interface SeizureDayGroup {
+export interface SeizureDayGroup<T extends Seizure = Seizure> {
     key: string;
     day: Date;
     count: number;
-    items: Seizure[];
+    items: T[];
 }
 
 /** Родительный падеж месяцев заголовка: «7 сентября». Вручную массивом, а
@@ -43,8 +43,10 @@ const MONTHS_GENITIVE = [
  * сервер не отдаёт; если всё же приехал — запись пропускаем с warn, чтобы
  * мусор не ломал весь список.
  */
-export function groupSeizuresByDay(seizures: Seizure[]): SeizureDayGroup[] {
-    const groups = new Map<string, SeizureDayGroup>();
+export function groupSeizuresByDay<T extends Seizure>(
+    seizures: T[],
+): SeizureDayGroup<T>[] {
+    const groups = new Map<string, SeizureDayGroup<T>>();
 
     for (const seizure of seizures) {
         const moment = parseUtcIso(seizure.occurred_at);

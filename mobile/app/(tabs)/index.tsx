@@ -10,8 +10,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { deleteSeizure, fetchSummary, listSeizures } from '@/api/seizures';
-import type { Seizure, SeizureSummary } from '@/api/types';
+import { deleteSeizure, listSeizures, listSeizureWindow } from '@/api/seizures';
+import type { Seizure } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { ActionSheet } from '@/components/journal/ActionSheet';
 import { DaySheet } from '@/components/journal/DaySheet';
@@ -21,6 +21,19 @@ import { WeekStrip } from '@/components/journal/WeekStrip';
 import { PeriodPicker } from '@/components/PeriodPicker';
 import { AppText } from '@/components/ui/AppText';
 import { deviceTimezone } from '@/config/timezone';
+import { useConnectivity } from '@/offline/ConnectivityContext';
+import { windowStartYmd } from '@/offline/journalCache';
+import {
+    getSnapshot,
+    removeCachedSeizure,
+    removeOutbox,
+    setWindowSnapshot,
+    useJournalStore,
+} from '@/offline/journalStore';
+import { buildLocalSummary } from '@/offline/localSummary';
+import { filterByRange, mergeEntries } from '@/offline/merge';
+import { flush } from '@/offline/sync';
+import type { JournalEntry } from '@/offline/types';
 import { colors, fontFamily, radius, spacing } from '@/theme/tokens';
 import { maybePromptUpdate } from '@/updates/prompt';
 import { groupSeizuresByDay } from '@/utils/dayGroups';
@@ -48,46 +61,57 @@ function loadErrorText(error: unknown): string {
     return GENERIC_ERROR_TEXT;
 }
 
+const isNetworkError = (error: unknown) =>
+    error instanceof ApiError && error.kind === 'network';
+
+/** «Всё» и произвольный период выходят за окно 30 дней: онлайн список
+ *  берётся с сервера постранично, остальные периоды — из локального стора. */
+const isServerPeriod = (period: PeriodFilter) =>
+    period.kind === 'all' || period.kind === 'custom';
+
 /**
  * Журнал — список приступов, маршрут «/» (вкладка «Журнал» группы (tabs)).
- * Загрузка при фокусе экрана и по pull-to-refresh; порядок строк задаёт
- * сервер (occurred_at DESC, id DESC) — на клиенте не сортируем. Тап по
- * строке открывает шторку действий (правка / комментарий / удаление с
- * подтверждением). Гард корневого layout сам уводит на логин при
+ * Тап по строке открывает шторку действий (правка / комментарий / удаление
+ * с подтверждением). Гард корневого layout сам уводит на логин при
  * истечении сессии.
  *
- * Верх экрана: кнопка «Записать приступ» (запись «сейчас»), неделя пн–вс и
- * лента 30 дней — из GET /seizures/summary. Сводка грузится параллельно со
- * списком; её ошибка список не ломает — блоки недели/ленты просто не
- * показываются.
+ * Источник данных — локальный стор (useJournalStore): снимок серверных
+ * записей за 30 дней + очередь неотправленных, склеенные mergeEntries.
+ * Неделя и лента 30 дней считаются локально (buildLocalSummary), периоды
+ * «Сегодня / 7 / 30 дней» — фильтр того же стора, поэтому журнал работает
+ * офлайн. Фокус и pull-to-refresh: сначала досылка очереди (flush), затем
+ * онлайн-загрузка окна 30 дней в снимок (setWindowSnapshot) — строго
+ * последовательно, чтобы снимок не выкинул запись, принятую сервером
+ * после старта запроса окна.
  *
- * Фильтр периода: дефолт «7 дней», пресеты «Сегодня / 7 дней / 30 / Всё» и
- * «Период…». Границы from/to считает periodToRange, сервер трактует их
- * включительно целыми календарными днями в поданной timezone — экран не
- * делает дата-арифметики.
+ * «Всё» и «Период…» онлайн — серверный список с пагинацией (per_page=50,
+ * loadMore по докрутке через appendSeizurePage), сверху — записи очереди
+ * из диапазона. Офлайн эти периоды показывают то, что есть в сторе, с
+ * пометкой «Без связи доступны только последние 30 дней».
  *
- * Пагинация: сервер отдаёт по 50 свежайших записей (occurred_at DESC) —
- * «Всё» показывает только их, пока не догрузить остальные. При докрутке до
- * конца списка loadMore дозапрашивает следующую страницу (?page=N по мете
- * пагинатора) и дописывает её через appendSeizurePage. Фокус,
- * pull-to-refresh и смена фильтра всегда перезагружают первую страницу.
- *
- * Строки сгруппированы по календарным дням (groupSeizuresByDay) в листы дня.
- * Экспорт и меню переехали во вкладки «Отчёт» / «Профиль».
+ * Строки сгруппированы по календарным дням (groupSeizuresByDay) в листы дня;
+ * неотправленные записи помечены. Экспорт и меню — во вкладках «Отчёт» /
+ * «Профиль».
  */
 export default function JournalScreen() {
     const router = useRouter();
     const { user } = useAuth();
+    const store = useJournalStore();
+    const { online } = useConnectivity();
 
     // Отступ статус-бара: контент начинается под часами/уведомлениями.
     const insets = useSafeAreaInsets();
 
-    // null = первая загрузка не завершена: отличаем «грузим» от «пусто».
-    const [items, setItems] = useState<Seizure[] | null>(null);
-    const [summary, setSummary] = useState<SeizureSummary | null>(null);
+    // Серверный список для «Всё»/«Период…» онлайн; null — первая страница
+    // ещё не пришла (отличаем «грузим» от «пусто»).
+    const [serverItems, setServerItems] = useState<Seizure[] | null>(null);
     const [refreshing, setRefreshing] = useState(false);
     const [loadError, setLoadError] = useState<unknown>(null);
     const [inlineError, setInlineError] = useState<string | null>(null);
+
+    // «Сейчас» последней загрузки: по нему считаются окно 30 дней,
+    // локальная сводка и границы периода — все от одного момента.
+    const [now, setNow] = useState(() => new Date());
 
     // Догрузка страниц (infinite scroll): hasMore — есть ли следующая
     // страница по мете пагинатора; loadingMore — идёт дозапрос.
@@ -98,7 +122,7 @@ export default function JournalScreen() {
     const [deletingId, setDeletingId] = useState<number | null>(null);
 
     // Запись, для которой открыта шторка действий.
-    const [sheetSeizure, setSheetSeizure] = useState<Seizure | null>(null);
+    const [sheetEntry, setSheetEntry] = useState<JournalEntry | null>(null);
     const [sheetVisible, setSheetVisible] = useState(false);
 
     // Фильтр периода списка; дефолт «7 дней» — как в вебе, весь журнал
@@ -115,59 +139,94 @@ export default function JournalScreen() {
     // перезапишет свежие данные.
     const requestSeqRef = useRef(0);
 
-    // Номер последней успешно загруженной страницы: load() всегда начинает
-    // с первой, loadMore запрашивает следующую.
+    // Номер последней успешно загруженной страницы серверного списка.
     const lastPageRef = useRef(1);
 
-    // Порядковый номер запроса сводки (общий для load и refreshSummary):
-    // устаревший ответ не перезаписывает более свежий.
-    const summarySeqRef = useRef(0);
+    // Экран в фокусе: перезагрузки по событиям стора/связи — только тогда.
+    const focusedRef = useRef(false);
 
     /**
-     * Загрузка первой страницы по текущему фильтру (periodRef): сбрасывает
-     * список и пагинацию, всё что догружено — уходит. При неудачном
-     * рефетче уже показанный список остаётся. Сводка грузится параллельно
-     * и не блокирует список; её ошибка игнорируется.
+     * Перечитывание журнала: досылка очереди → (онлайн) окно 30 дней в
+     * снимок стора, для «Всё»/«Период…» — ещё первая страница серверного
+     * списка. Пока стор не загружен, сеть не трогаем: эффект на loaded
+     * перезапустит load. Сетевая ошибка красным не показывается — офлайн
+     * виден по online, данные остаются из стора.
      */
     const load = useCallback(async (): Promise<void> => {
         const seq = ++requestSeqRef.current;
-        const summarySeq = ++summarySeqRef.current;
+        const moment = new Date();
+        const periodAtStart = periodRef.current;
 
         setRefreshing(true);
-
-        const range = periodToRange(periodRef.current);
-
-        void fetchSummary({ timezone: deviceTimezone(), ...(range ?? {}) })
-            .then((next) => {
-                if (
-                    seq === requestSeqRef.current &&
-                    summarySeq === summarySeqRef.current
-                ) {
-                    setSummary(next);
-                }
-            })
-            .catch(() => {
-                // Без сводки журнал работает: блоки недели/ленты скрыты.
-            });
+        setNow(moment);
 
         try {
-            const response = await listSeizures({
-                timezone: deviceTimezone(),
-                page: 1,
-                ...(range ?? {}),
-            });
+            await flush();
 
-            if (seq === requestSeqRef.current) {
-                setItems(response.data);
-                setLoadError(null);
-                lastPageRef.current = response.meta.current_page;
-                setHasMore(
-                    response.meta.current_page < response.meta.last_page,
-                );
+            if (seq !== requestSeqRef.current) {
+                return;
             }
-        } catch (error) {
-            // items не трогаем; не-ApiError тоже попадает в loadError —
-            // рендер покажет для него общий текст.
+
+            const snapshot = getSnapshot();
+
+            if (!snapshot.loaded) {
+                return;
+            }
+
+            const cacheAtStart = snapshot.cache;
+            const timezone = deviceTimezone();
+
+            const [windowResult, pageResult] = await Promise.allSettled([
+                listSeizureWindow({
+                    timezone,
+                    from: windowStartYmd(moment),
+                    to: formatYmd(moment),
+                }),
+                isServerPeriod(periodAtStart)
+                    ? listSeizures({
+                          timezone,
+                          page: 1,
+                          ...(periodToRange(periodAtStart, moment) ?? {}),
+                      })
+                    : Promise.resolve(null),
+            ]);
+
+            if (seq !== requestSeqRef.current) {
+                return;
+            }
+
+            let error: unknown = null;
+
+            if (windowResult.status === 'fulfilled') {
+                // Кэш менялся во время запроса (досылка из другого триггера,
+                // удаление) — снимок мог разминуться с этими правками;
+                // оставляем стор как есть, следующая загрузка обновит окно.
+                if (getSnapshot().cache === cacheAtStart) {
+                    try {
+                        await setWindowSnapshot(windowResult.value, moment);
+                    } catch {
+                        // Стор выгрузили (выход/смена владельца) — писать
+                        // снимок некуда, это не ошибка для пользователя.
+                    }
+                }
+            } else if (!isNetworkError(windowResult.reason)) {
+                error = windowResult.reason;
+            }
+
+            if (pageResult.status === 'fulfilled') {
+                const response = pageResult.value;
+
+                if (response !== null) {
+                    setServerItems(response.data);
+                    lastPageRef.current = response.meta.current_page;
+                    setHasMore(
+                        response.meta.current_page < response.meta.last_page,
+                    );
+                }
+            } else if (error === null && !isNetworkError(pageResult.reason)) {
+                error = pageResult.reason;
+            }
+
             if (seq === requestSeqRef.current) {
                 setLoadError(error);
             }
@@ -179,16 +238,22 @@ export default function JournalScreen() {
     }, []);
 
     /**
-     * Догрузка следующей страницы по докрутке списка до конца
+     * Догрузка следующей страницы серверного списка по докрутке до конца
      * (FlatList onEndReached): запрос ?page=N, дописывание страниц
-     * appendSeizurePage (дубли по id выкидывает). Список на экране не
-     * сбрасывается; ошибка догрузки — общий инлайн-текст, повторная
-     * попытка — следующая докрутка. Гонку со сменой фильтра гасит
-     * сравнение periodRef: страница старого периода, прилетевшая после
+     * appendSeizurePage (дубли по id выкидывает). Только для «Всё» /
+     * «Период…» онлайн. Ошибка — общий инлайн-текст, повторная попытка —
+     * следующая докрутка. Страница старого периода, прилетевшая после
      * смены фильтра, к новому списку не дописывается.
      */
     async function loadMore(): Promise<void> {
-        if (loadingMore || refreshing || !hasMore || items === null) {
+        if (
+            !isServerPeriod(period) ||
+            !online ||
+            loadingMore ||
+            refreshing ||
+            !hasMore ||
+            serverItems === null
+        ) {
             return;
         }
 
@@ -210,7 +275,7 @@ export default function JournalScreen() {
 
             lastPageRef.current = response.meta.current_page;
             setHasMore(response.meta.current_page < response.meta.last_page);
-            setItems((prev) =>
+            setServerItems((prev) =>
                 prev === null ? prev : appendSeizurePage(prev, response.data),
             );
             setInlineError(null);
@@ -222,12 +287,42 @@ export default function JournalScreen() {
     }
 
     // Один механизм на монтирование и возвраты из edit/new/settings
-    // (включая системный back) — вариант A дизайн-документа.
+    // (включая системный back).
     useFocusEffect(
         useCallback(() => {
+            focusedRef.current = true;
             void load();
+
+            return () => {
+                focusedRef.current = false;
+            };
         }, [load]),
     );
+
+    // Стор загрузился после фокуса (холодный старт: провайдер связи грузит
+    // его параллельно) — load, начатый раньше, сеть не трогал.
+    const prevLoadedRef = useRef(store.loaded);
+
+    useEffect(() => {
+        const wasLoaded = prevLoadedRef.current;
+        prevLoadedRef.current = store.loaded;
+
+        if (store.loaded && !wasLoaded && focusedRef.current) {
+            void load();
+        }
+    }, [store.loaded, load]);
+
+    // Связь вернулась — дослать очередь и обновить окно / серверный список.
+    const prevOnlineRef = useRef(online);
+
+    useEffect(() => {
+        const wasOnline = prevOnlineRef.current;
+        prevOnlineRef.current = online;
+
+        if (online && !wasOnline && focusedRef.current) {
+            void load();
+        }
+    }, [online, load]);
 
     // Проверка обновления — раз за жизнь процесса (флаг внутри модуля),
     // стартовый системный диалог «Скачать / Позже». Fire-and-forget: сбои
@@ -236,54 +331,103 @@ export default function JournalScreen() {
         void maybePromptUpdate();
     }, []);
 
-    // Группы по календарным дням: пересборка только при смене items
-    // (загрузка/фильтр/локальное удаление), порядок — как от сервера.
-    const dayGroups = useMemo(() => groupSeizuresByDay(items ?? []), [items]);
+    // Кэш 30 дней + очередь, без дублей по client_id.
+    const entries = useMemo<JournalEntry[]>(
+        () =>
+            store.cache !== null && store.outbox !== null
+                ? mergeEntries(store.cache.seizures, store.outbox.items)
+                : [],
+        [store.cache, store.outbox],
+    );
+
+    const localSummary = useMemo(
+        () => buildLocalSummary(entries, now),
+        [entries, now],
+    );
 
     const week = useMemo(
         () =>
-            summary !== null
-                ? weekFromSummary(summary.today, summary.days)
+            store.loaded
+                ? weekFromSummary(localSummary.today, localSummary.days)
                 : null,
-        [summary],
+        [store.loaded, localSummary],
     );
 
-    // «Сегодня» для заголовка листа дня: от сервера, иначе — устройство.
-    const todayYmd = summary?.today ?? formatYmd(new Date());
+    const serverMode = isServerPeriod(period);
+    const showServerList = serverMode && online;
 
-    /** Обновляет только сводку (после удаления): список и догруженные
-     *  страницы не трогаем. Устаревший ответ при смене фильтра отбрасывается. */
-    async function refreshSummary(): Promise<void> {
-        const periodAtStart = periodRef.current;
-        const seq = ++summarySeqRef.current;
+    // Строки списка; null — грузим (стор не загружен или первая страница
+    // серверного списка ещё не пришла).
+    const listEntries = useMemo<JournalEntry[] | null>(() => {
+        if (!store.loaded) {
+            return null;
+        }
+
+        const range = periodToRange(period, now);
+
+        if (!showServerList) {
+            return filterByRange(entries, range);
+        }
+
+        if (serverItems === null) {
+            return null;
+        }
+
+        // Записи очереди из диапазона — сверху; уже пришедшие с сервера
+        // (тот же client_id) скрываются.
+        const serverClientIds = new Set(
+            serverItems.flatMap((seizure) =>
+                seizure.client_id === null ? [] : [seizure.client_id],
+            ),
+        );
+        const pending = filterByRange(
+            entries.filter(
+                (entry) =>
+                    entry.sync !== 'synced' &&
+                    (entry.client_id === null ||
+                        !serverClientIds.has(entry.client_id)),
+            ),
+            range,
+        );
+
+        return [
+            ...pending,
+            ...serverItems.map((seizure): JournalEntry => ({
+                ...seizure,
+                sync: 'synced',
+            })),
+        ];
+    }, [store.loaded, period, now, showServerList, entries, serverItems]);
+
+    // Группы по календарным дням, порядок — как в listEntries.
+    const dayGroups = useMemo(
+        () => groupSeizuresByDay(listEntries ?? []),
+        [listEntries],
+    );
+
+    // Офлайн и окно ни разу не загружалось — показать нечего.
+    const noSavedData =
+        store.loaded &&
+        !online &&
+        (store.cache?.synced_at ?? null) === null &&
+        entries.length === 0;
+
+    /** Убирает удалённую на сервере запись из серверного списка и снимка. */
+    async function dropServerEntry(id: number): Promise<void> {
+        setServerItems((prev) =>
+            prev === null ? prev : prev.filter((s) => s.id !== id),
+        );
 
         try {
-            const next = await fetchSummary({
-                timezone: deviceTimezone(),
-                ...(periodToRange(periodAtStart) ?? {}),
-            });
-
-            if (
-                periodRef.current === periodAtStart &&
-                seq === summarySeqRef.current
-            ) {
-                setSummary(next);
-            }
+            await removeCachedSeizure(id);
         } catch {
-            // Сводка вторична: оставляем прежнюю.
+            // Стор выгружен (выход) — чистить нечего.
         }
     }
 
-    /** Убирает запись из локального списка тем же фильтром по id. */
-    function removeLocalItem(id: number): void {
-        setItems((prev) =>
-            prev === null ? prev : prev.filter((s) => s.id !== id),
-        );
-    }
-
     /** Тап по строке / «···»: открывает шторку действий. */
-    function openRowActions(seizure: Seizure): void {
-        setSheetSeizure(seizure);
+    function openRowActions(entry: JournalEntry): void {
+        setSheetEntry(entry);
         setSheetVisible(true);
     }
 
@@ -291,20 +435,35 @@ export default function JournalScreen() {
         setSheetVisible(false);
     }
 
-    async function removeSeizure(seizure: Seizure): Promise<void> {
-        const { id } = seizure;
+    async function removeEntry(entry: JournalEntry): Promise<void> {
+        setInlineError(null);
+
+        // Неотправленная запись живёт только на устройстве — снять из очереди.
+        if (entry.sync !== 'synced') {
+            if (entry.client_id === null) {
+                return;
+            }
+
+            try {
+                await removeOutbox(entry.client_id);
+            } catch {
+                setInlineError(GENERIC_ERROR_TEXT);
+            }
+
+            return;
+        }
+
+        const { id } = entry;
 
         setDeletingId(id);
-        setInlineError(null);
 
         try {
             await deleteSeizure(id);
-            removeLocalItem(id);
-            void refreshSummary();
+            await dropServerEntry(id);
         } catch (error) {
             if (error instanceof ApiError && error.kind === 'not_found') {
                 // Записи уже нет на сервере — убираем локально.
-                removeLocalItem(id);
+                await dropServerEntry(id);
             } else {
                 // Сеть/5xx — инлайн-текст, запись остаётся в списке.
                 setInlineError(actionErrorText(error));
@@ -315,11 +474,11 @@ export default function JournalScreen() {
     }
 
     /** Применение фильтра: новый запрос = новое «первое» состояние, строки
-     *  и ошибки предыдущего периода не висят рядом — до ответа «Загрузка…». */
+     *  и ошибки предыдущего периода не висят рядом. */
     function applyPeriod(next: PeriodFilter): void {
         periodRef.current = next;
         setPeriod(next);
-        setItems(null);
+        setServerItems(null);
         setLoadError(null);
         setHasMore(false);
 
@@ -327,6 +486,14 @@ export default function JournalScreen() {
     }
 
     const initial = (user?.email ?? '?').charAt(0).toUpperCase();
+
+    // Серверный список не загрузился ни разу (не сетевая ошибка) —
+    // полноэкранная ошибка с «Повторить».
+    const fullError =
+        store.loaded &&
+        showServerList &&
+        serverItems === null &&
+        loadError !== null;
 
     const header = (
         <View>
@@ -356,15 +523,25 @@ export default function JournalScreen() {
                 ) : null}
             </View>
 
-            {summary !== null ? (
+            {store.loaded ? (
                 <View style={styles.month}>
-                    <MonthStrip days={summary.days} />
+                    <MonthStrip days={localSummary.days} />
                 </View>
             ) : null}
 
             <PeriodPicker value={period} onChange={applyPeriod} />
 
-            {items !== null && loadError !== null ? (
+            {store.loaded && serverMode && !online ? (
+                <AppText
+                    variant="label"
+                    color="muted"
+                    style={styles.inlineError}
+                >
+                    Без связи доступны только последние 30 дней
+                </AppText>
+            ) : null}
+
+            {listEntries !== null && loadError !== null ? (
                 <AppText
                     variant="label"
                     color="danger"
@@ -384,13 +561,13 @@ export default function JournalScreen() {
                 </AppText>
             ) : null}
 
-            {items === null && loadError === null ? (
+            {listEntries === null && !fullError ? (
                 <View style={styles.state}>
                     <AppText color="muted">Загрузка…</AppText>
                 </View>
             ) : null}
 
-            {items === null && loadError !== null ? (
+            {fullError ? (
                 <View style={styles.state}>
                     <AppText
                         variant="label"
@@ -413,10 +590,21 @@ export default function JournalScreen() {
                 </View>
             ) : null}
 
-            {items !== null && items.length === 0 ? (
+            {noSavedData ? (
                 <View style={styles.state}>
                     <AppText color="muted" style={styles.emptyText}>
-                        {period.kind === 'all'
+                        Нет сохранённых данных. Подключитесь к интернету, чтобы
+                        загрузить журнал.
+                    </AppText>
+                </View>
+            ) : null}
+
+            {!noSavedData &&
+            listEntries !== null &&
+            listEntries.length === 0 ? (
+                <View style={styles.state}>
+                    <AppText color="muted" style={styles.emptyText}>
+                        {period.kind === 'all' && online
                             ? 'Приступов пока нет. Нажмите «Записать приступ».'
                             : 'За выбранный период приступов нет.'}
                     </AppText>
@@ -459,7 +647,7 @@ export default function JournalScreen() {
                 renderItem={({ item: group }) => (
                     <DaySheet
                         group={group}
-                        isToday={group.key === todayYmd}
+                        isToday={group.key === localSummary.today}
                         deletingId={deletingId}
                         onPressRow={openRowActions}
                     />
@@ -468,10 +656,11 @@ export default function JournalScreen() {
 
             <ActionSheet
                 visible={sheetVisible}
-                seizure={sheetSeizure}
+                entry={sheetEntry}
+                online={online}
                 onClose={closeSheet}
-                onDelete={(seizure) => {
-                    void removeSeizure(seizure);
+                onDelete={(entry) => {
+                    void removeEntry(entry);
                 }}
             />
         </View>

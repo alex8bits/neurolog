@@ -1,17 +1,17 @@
 import { StyleSheet, View } from 'react-native';
 
-import type { Seizure } from '@/api/types';
 import { SeizureRow } from '@/components/journal/SeizureRow';
 import { AppText } from '@/components/ui/AppText';
+import type { JournalEntry } from '@/offline/types';
 import { colors, fontFamily, radius, spacing } from '@/theme/tokens';
 import { formatDayTitle, pluralizeSeizures } from '@/utils/dayGroups';
 import type { SeizureDayGroup } from '@/utils/dayGroups';
 
 type Props = {
-    group: SeizureDayGroup;
+    group: SeizureDayGroup<JournalEntry>;
     isToday: boolean;
     deletingId: number | null;
-    onPressRow: (seizure: Seizure) => void;
+    onPressRow: (entry: JournalEntry) => void;
 };
 
 /** Лист дня: заголовок («Сегодня» на sunSoft) + количество, внутри строки. */

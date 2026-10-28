@@ -2,18 +2,20 @@ import { useRouter } from 'expo-router';
 import { Alert, Modal, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import type { Seizure } from '@/api/types';
-import { rowTimeLabel } from '@/components/journal/SeizureRow';
+import { rowTimeLabel, syncLabel } from '@/components/journal/SeizureRow';
 import { AppText } from '@/components/ui/AppText';
+import type { JournalEntry } from '@/offline/types';
 import { colors, fontFamily, radius, spacing } from '@/theme/tokens';
 import { formatLocalDateTime, parseUtcIso } from '@/utils/time';
 
 type Props = {
     visible: boolean;
-    seizure: Seizure | null;
+    entry: JournalEntry | null;
+    /** Есть связь с сервером: без неё серверные записи не меняются. */
+    online: boolean;
     onClose: () => void;
     /** Вызывается после подтверждения «Удалить» в Alert. */
-    onDelete: (seizure: Seizure) => void;
+    onDelete: (entry: JournalEntry) => void;
 };
 
 /** «10.05.2026» из локальной даты записи. */
@@ -23,12 +25,23 @@ function dateLabel(occurredAt: string): string {
         : '';
 }
 
-/** Нижняя шторка действий над записью: изменить время, комментарий, удалить. */
-export function ActionSheet({ visible, seizure, onClose, onDelete }: Props) {
+/**
+ * Нижняя шторка действий над записью: изменить время, комментарий, удалить.
+ * Запись из очереди (не отправлена / не удалось сохранить) можно только
+ * удалить с устройства; серверная запись без связи не меняется — пункты
+ * неактивны, под ними подпись.
+ */
+export function ActionSheet({
+    visible,
+    entry,
+    online,
+    onClose,
+    onDelete,
+}: Props) {
     const router = useRouter();
     const insets = useSafeAreaInsets();
 
-    function edit(target: Seizure, focus?: 'comment'): void {
+    function edit(target: JournalEntry, focus?: 'comment'): void {
         onClose();
         router.push({
             pathname: '/edit',
@@ -41,19 +54,30 @@ export function ActionSheet({ visible, seizure, onClose, onDelete }: Props) {
         });
     }
 
-    function confirmDelete(target: Seizure): void {
+    function confirmDelete(target: JournalEntry): void {
         onClose();
-        Alert.alert('Удалить запись?', 'Действие нельзя отменить.', [
-            { text: 'Отмена', style: 'cancel' },
-            {
-                text: 'Удалить',
-                style: 'destructive',
-                onPress: () => {
-                    onDelete(target);
+        Alert.alert(
+            target.sync !== 'synced'
+                ? 'Удалить неотправленную запись?'
+                : 'Удалить запись?',
+            'Действие нельзя отменить.',
+            [
+                { text: 'Отмена', style: 'cancel' },
+                {
+                    text: 'Удалить',
+                    style: 'destructive',
+                    onPress: () => {
+                        onDelete(target);
+                    },
                 },
-            },
-        ]);
+            ],
+        );
     }
+
+    const pending = entry !== null && entry.sync !== 'synced';
+    const mark = entry !== null ? syncLabel(entry.sync) : null;
+    // Серверная запись без связи: правка и удаление недоступны.
+    const locked = entry !== null && !pending && !online;
 
     return (
         <Modal
@@ -76,29 +100,50 @@ export function ActionSheet({ visible, seizure, onClose, onDelete }: Props) {
                         { paddingBottom: insets.bottom + spacing.lg },
                     ]}
                 >
-                    {seizure !== null ? (
+                    {entry !== null ? (
                         <>
                             <View style={styles.head}>
                                 <AppText style={styles.title}>
-                                    {rowTimeLabel(seizure.occurred_at)}
+                                    {rowTimeLabel(entry.occurred_at)}
                                 </AppText>
                                 <AppText color="muted" variant="label">
-                                    {dateLabel(seizure.occurred_at)}
+                                    {dateLabel(entry.occurred_at)}
                                 </AppText>
+                                {mark !== null ? (
+                                    <AppText color={mark.color} variant="label">
+                                        {mark.text}
+                                    </AppText>
+                                ) : null}
                             </View>
-                            <Item
-                                label="Изменить время"
-                                onPress={() => edit(seizure)}
-                            />
-                            <Item
-                                label="Добавить / изменить комментарий"
-                                onPress={() => edit(seizure, 'comment')}
-                            />
+                            {!pending ? (
+                                <>
+                                    <Item
+                                        label="Изменить время"
+                                        disabled={locked}
+                                        onPress={() => edit(entry)}
+                                    />
+                                    <Item
+                                        label="Добавить / изменить комментарий"
+                                        disabled={locked}
+                                        onPress={() => edit(entry, 'comment')}
+                                    />
+                                </>
+                            ) : null}
                             <Item
                                 label="Удалить запись"
                                 danger
-                                onPress={() => confirmDelete(seizure)}
+                                disabled={locked}
+                                onPress={() => confirmDelete(entry)}
                             />
+                            {locked ? (
+                                <AppText
+                                    color="muted"
+                                    variant="label"
+                                    style={styles.hint}
+                                >
+                                    Доступно при подключении к интернету
+                                </AppText>
+                            ) : null}
                         </>
                     ) : null}
                 </Pressable>
@@ -110,17 +155,21 @@ export function ActionSheet({ visible, seizure, onClose, onDelete }: Props) {
 function Item({
     label,
     danger = false,
+    disabled = false,
     onPress,
 }: {
     label: string;
     danger?: boolean;
+    disabled?: boolean;
     onPress: () => void;
 }) {
     return (
         <Pressable
             accessibilityRole="button"
+            accessibilityState={{ disabled }}
+            disabled={disabled}
             onPress={onPress}
-            style={styles.item}
+            style={[styles.item, disabled && styles.itemDisabled]}
         >
             <AppText
                 color={danger ? 'danger' : 'text'}
@@ -152,5 +201,7 @@ const styles = StyleSheet.create({
         borderTopWidth: StyleSheet.hairlineWidth,
         paddingVertical: spacing.lg,
     },
+    itemDisabled: { opacity: 0.4 },
     itemLabel: { fontFamily: fontFamily.bold, fontSize: 16, lineHeight: 22 },
+    hint: { paddingBottom: spacing.sm, textAlign: 'center' },
 });

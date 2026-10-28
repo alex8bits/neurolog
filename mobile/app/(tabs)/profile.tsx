@@ -1,6 +1,6 @@
 import { nativeApplicationVersion } from 'expo-application';
-import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
 import {
     Alert,
     Linking,
@@ -19,7 +19,7 @@ import { AppText } from '@/components/ui/AppText';
 import { APK_DOWNLOAD_URL } from '@/config/env';
 import { useConnectivity } from '@/offline/ConnectivityContext';
 import { colors, fontFamily, spacing } from '@/theme/tokens';
-import { maybePromptUpdate } from '@/updates/prompt';
+import { useAvailableUpdate } from '@/updates/useUpdateCheck';
 
 /**
  * Вкладка «Профиль» (бывшее бургер-меню журнала): шапка с инициалом, имя и
@@ -31,14 +31,15 @@ import { maybePromptUpdate } from '@/updates/prompt';
 export default function ProfileScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
-    const { online, networkKnown } = useConnectivity();
+    const { online } = useConnectivity();
 
     // null = грузим (скелетон); ошибка меню не блокирует.
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [donateVisible, setDonateVisible] = useState(false);
 
-    // Версия найденного обновления; null — нет/не проверено.
-    const [updateVersion, setUpdateVersion] = useState<string | null>(null);
+    // Версия найденного обновления; null — нет/не проверено. Проверку
+    // запускает useUpdateCheck в раскладке вкладок, здесь только чтение.
+    const updateVersion = useAvailableUpdate();
 
     // Загрузка на монтирование и при возврате связи, пока профиля нет.
     const needProfile = profile === null;
@@ -64,29 +65,6 @@ export default function ProfileScreen() {
             cancelled = true;
         };
     }, [online, needProfile]);
-
-    // Проверка обновления при показе вкладки (мета запрашивается один раз
-    // за процесс — повторные вызовы возвращают кэш). Только онлайн: офлайн
-    // попытка сожгла бы флаг одной проверки на процесс.
-    useFocusEffect(
-        useCallback(() => {
-            if (!online || !networkKnown) {
-                return;
-            }
-
-            let cancelled = false;
-
-            void maybePromptUpdate().then((version) => {
-                if (!cancelled) {
-                    setUpdateVersion(version);
-                }
-            });
-
-            return () => {
-                cancelled = true;
-            };
-        }, [online, networkKnown]),
-    );
 
     function downloadUpdate(): void {
         void Linking.openURL(APK_DOWNLOAD_URL).catch(() => {

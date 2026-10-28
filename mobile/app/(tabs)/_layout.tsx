@@ -6,6 +6,7 @@ import type { ColorValue } from 'react-native';
 
 import { useConnectivity } from '@/offline/ConnectivityContext';
 import { colors, fontFamily } from '@/theme/tokens';
+import { useUpdateCheck } from '@/updates/useUpdateCheck';
 
 /** Иконка вкладки: скруглённый квадрат цвета вкладки (как .tabbar i в макете). */
 function TabIcon({ color }: { color: ColorValue }) {
@@ -44,9 +45,14 @@ function serverTabOptions(title: string, online: boolean) {
  * URL: index остаётся маршрутом «/». Экраны new, edit, settings и т.д.
  * живут в группе (journal) корневого Stack и открываются поверх вкладок.
  * Без сети «Отчёт» и «Профиль» недоступны — журнал работает офлайн.
+ * Здесь же — единственный триггер проверки обновления (старт и возврат
+ * из фона). Поверх /quick (тёплый старт иконкой «Приступ») проверка не
+ * идёт — выполнится при возврате на вкладки.
  */
 export default function TabsLayout() {
     const { online } = useConnectivity();
+
+    useUpdateCheck();
 
     const blockOffline = {
         tabPress: (event: { preventDefault: () => void }) => {

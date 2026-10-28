@@ -36,7 +36,6 @@ import { filterByRange, mergeEntries } from '@/offline/merge';
 import { flush } from '@/offline/sync';
 import type { JournalEntry } from '@/offline/types';
 import { colors, fontFamily, radius, spacing } from '@/theme/tokens';
-import { maybePromptUpdate } from '@/updates/prompt';
 import { groupSeizuresByDay } from '@/utils/dayGroups';
 import {
     actionErrorText,
@@ -100,8 +99,7 @@ export default function JournalScreen() {
     const router = useRouter();
     const { user } = useAuth();
     const store = useJournalStore();
-    const { online, networkKnown, pendingCount, failedCount } =
-        useConnectivity();
+    const { online, pendingCount, failedCount } = useConnectivity();
 
     // Отступ статус-бара: контент начинается под часами/уведомлениями.
     const insets = useSafeAreaInsets();
@@ -378,17 +376,6 @@ export default function JournalScreen() {
             }
         }
     }, [online, load]);
-
-    // Проверка обновления — раз за жизнь процесса (флаг внутри модуля),
-    // стартовый системный диалог «Скачать / Позже». Только онлайн и после
-    // ответа expo-network: флаг ставится до сети, офлайн-старт сжёг бы
-    // единственную попытку. Эффект срабатывает при первом появлении сети;
-    // повторные вызовы — no-op. Fire-and-forget, сбои внутри fail-open.
-    useEffect(() => {
-        if (online && networkKnown) {
-            void maybePromptUpdate();
-        }
-    }, [online, networkKnown]);
 
     // Кэш 30 дней + очередь, без дублей по client_id.
     const entries = useMemo<JournalEntry[]>(

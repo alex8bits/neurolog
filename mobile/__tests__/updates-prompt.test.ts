@@ -3,8 +3,12 @@ import { Alert, Linking } from 'react-native';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
-import { APK_DOWNLOAD_URL } from '@/config/env';
-import { __resetForTests, maybePromptUpdate } from '@/updates/prompt';
+import { APK_DOWNLOAD_URL, RELEASE_META_URL } from '@/config/env';
+import {
+    __resetForTests,
+    maybePromptUpdate,
+    UPDATE_CHECK_INTERVAL_MS,
+} from '@/updates/prompt';
 
 vi.mock('expo-secure-store', () => ({
     getItemAsync: vi.fn(),
@@ -73,6 +77,7 @@ beforeEach(() => {
 
 afterEach(() => {
     vi.unstubAllGlobals();
+    vi.useRealTimers();
 });
 
 describe('maybePromptUpdate', () => {
@@ -92,20 +97,52 @@ describe('maybePromptUpdate', () => {
         expect(buttons[1]).toMatchObject({ text: 'Скачать' });
     });
 
-    it('одноразовость: повтор без сброса не фетчит, после __resetForTests — фетчит', async () => {
+    it('троттлинг: в пределах интервала без запроса и без повторного диалога, после — новый запрос мимо кэша', async () => {
+        vi.useFakeTimers();
         releaseMeta();
 
         await maybePromptUpdate();
         await maybePromptUpdate();
 
         expect(fetchMock).toHaveBeenCalledTimes(1);
-        expect(alertMock).toHaveBeenCalledTimes(1);
 
-        __resetForTests();
+        const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+
+        expect(url.startsWith(`${RELEASE_META_URL}?t=`)).toBe(true);
+        expect(init.cache).toBe('no-store');
+
+        vi.advanceTimersByTime(UPDATE_CHECK_INTERVAL_MS);
 
         await maybePromptUpdate();
 
         expect(fetchMock).toHaveBeenCalledTimes(2);
+        // Та же версия меты в этом процессе — диалог один.
+        expect(alertMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('сетевой сбой не включает троттлинг: следующий вызов снова запрашивает', async () => {
+        fetchMock.mockRejectedValueOnce(
+            new TypeError('Network request failed'),
+        );
+        releaseMeta();
+
+        await maybePromptUpdate();
+        await maybePromptUpdate();
+
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('гейт canPrompt: запрет откладывает диалог, следующий вызов в интервале показывает его без второго fetch', async () => {
+        releaseMeta();
+
+        await maybePromptUpdate(() => false);
+
+        expect(alertMock).not.toHaveBeenCalled();
+
+        await maybePromptUpdate(() => true);
+
+        expect(alertMock).toHaveBeenCalledTimes(1);
+        expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
     it('сохранённый отказ для версии меты: fetch был, Alert не показан', async () => {

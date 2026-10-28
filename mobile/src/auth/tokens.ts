@@ -10,6 +10,9 @@ export interface StoredAuth {
     access_token: string;
     refresh_token: string;
     email: string;
+    /** Имя для буквы аватара; нет у сессий до 0.0.17 и сразу после входа
+     *  (до первого GET /profile). */
+    name?: string;
 }
 
 export async function readTokens(): Promise<StoredAuth | null> {
@@ -30,6 +33,7 @@ export async function readTokens(): Promise<StoredAuth | null> {
 export async function saveTokens(
     pair: TokenPair,
     email: string,
+    name?: string,
 ): Promise<void> {
     await SecureStore.setItemAsync(
         AUTH_KEY,
@@ -37,6 +41,7 @@ export async function saveTokens(
             access_token: pair.access_token,
             refresh_token: pair.refresh_token,
             email,
+            name,
         }),
     );
 }
@@ -71,5 +76,20 @@ export async function updateStoredEmail(email: string): Promise<void> {
     await SecureStore.setItemAsync(
         AUTH_KEY,
         JSON.stringify({ ...stored, email }),
+    );
+}
+
+/** Запоминает имя пользователя рядом с токенами (буква аватара без сети).
+ *  Та же гонка last-write-wins с refresh, что у updateStoredEmail. */
+export async function updateStoredName(name: string): Promise<void> {
+    const stored = await readTokens();
+
+    if (stored === null || stored.name === name) {
+        return;
+    }
+
+    await SecureStore.setItemAsync(
+        AUTH_KEY,
+        JSON.stringify({ ...stored, name }),
     );
 }

@@ -574,7 +574,7 @@ export default function JournalScreen() {
         void load();
     }
 
-    const initial = (user?.email ?? '?').charAt(0).toUpperCase();
+    const initial = (user?.name || user?.email || '?').charAt(0).toUpperCase();
 
     // «Не отправлено: N» — вся очередь, включая отвергнутые сервером.
     const unsentCount = pendingCount + failedCount;

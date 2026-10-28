@@ -1,10 +1,22 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import {
+    createContext,
+    useCallback,
+    useContext,
+    useEffect,
+    useState,
+} from 'react';
 import type { ReactNode } from 'react';
 
 import * as authApi from '@/api/auth';
 import { onSessionExpired, resetSession } from '@/api/client';
+import { fetchProfile } from '@/api/profile';
 import type { LoginInput, RegisterInput } from '@/api/types';
-import { clearTokens, readTokens, updateStoredEmail } from '@/auth/tokens';
+import {
+    clearTokens,
+    readTokens,
+    updateStoredEmail,
+    updateStoredName,
+} from '@/auth/tokens';
 import { clearStore, renameOwner } from '@/offline/journalStore';
 import { loadOwner } from '@/offline/sync';
 
@@ -12,6 +24,8 @@ export type AuthStatus = 'unknown' | 'anonymous' | 'authed';
 
 export interface AuthUser {
     email: string;
+    /** null — имя ещё не известно (вход до первого GET /profile). */
+    name: string | null;
 }
 
 interface AuthContextValue {
@@ -21,6 +35,7 @@ interface AuthContextValue {
     register: (input: RegisterInput) => Promise<void>;
     logout: () => Promise<void>;
     updateEmail: (email: string) => Promise<void>;
+    rememberName: (name: string) => Promise<void>;
     signOutLocally: () => Promise<void>;
 }
 
@@ -36,6 +51,31 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [state, setState] = useState<AuthState>(INITIAL_STATE);
 
+    /** Запоминает имя (SecureStore + состояние) — его зовут экраны,
+     *  получившие профиль с сервера. */
+    const rememberName = useCallback(async (name: string): Promise<void> => {
+        try {
+            await updateStoredName(name);
+        } catch (error) {
+            console.warn('auth: имя не сохранено', error);
+        }
+
+        setState((prev) =>
+            prev.user === null || prev.user.name === name
+                ? prev
+                : { ...prev, user: { ...prev.user, name } },
+        );
+    }, []);
+
+    /** Имя для аватара после входа: best-effort GET /profile — без сети
+     *  аватар показывает букву email, имя подтянут экраны профиля. */
+    const loadName = useCallback((): void => {
+        fetchProfile().then(
+            (response) => void rememberName(response.data.name),
+            () => {},
+        );
+    }, [rememberName]);
+
     // Bootstrap: сессия восстанавливается из SecureStore — рестарт
     // приложения не спрашивает логин повторно (PLAN.md, приёмка этапа 1).
     useEffect(() => {
@@ -46,17 +86,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 return;
             }
 
-            setState(
-                stored === null
-                    ? { status: 'anonymous', user: null }
-                    : { status: 'authed', user: { email: stored.email } },
-            );
+            if (stored === null) {
+                setState({ status: 'anonymous', user: null });
+
+                return;
+            }
+
+            setState({
+                status: 'authed',
+                user: { email: stored.email, name: stored.name ?? null },
+            });
+
+            if (stored.name === undefined) {
+                loadName();
+            }
         });
 
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [loadName]);
 
     // Refresh-очередь клиента сама чистит токены при refresh-401 и зовёт
     // подписчиков (AuthController.php:81-85) — здесь только статус.
@@ -75,12 +124,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // authApi.login сохраняет пару токенов; ApiError НЕ глотаем —
         // экран покажет сообщение формы/подсветку полей (таск 6).
         await authApi.login(input);
-        setState({ status: 'authed', user: { email: input.email } });
+        setState({
+            status: 'authed',
+            user: { email: input.email, name: null },
+        });
+        loadName();
     }
 
     async function register(input: RegisterInput): Promise<void> {
         await authApi.register(input);
-        setState({ status: 'authed', user: { email: input.email } });
+        setState({
+            status: 'authed',
+            user: { email: input.email, name: input.name },
+        });
     }
 
     async function logout(): Promise<void> {
@@ -126,7 +182,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         setState((prev) =>
-            prev.user === null ? prev : { ...prev, user: { email } },
+            prev.user === null
+                ? prev
+                : { ...prev, user: { ...prev.user, email } },
         );
     }
 
@@ -162,6 +220,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         register,
         logout,
         updateEmail,
+        rememberName,
         signOutLocally,
     };
 

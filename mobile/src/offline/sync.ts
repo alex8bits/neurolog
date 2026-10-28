@@ -287,12 +287,35 @@ function hasQueued(owner: string, exceptClientId: string): boolean {
         );
 }
 
+/** Исход записи, которую отправляла досылка: снята из очереди и есть в
+ *  кэше — sent; иначе (не дошла, 422, сменился владелец) — queued. */
+function settledResult(owner: string, clientId: string): RecordResult {
+    const snapshot = getSnapshot();
+    const queued: RecordResult = { kind: 'queued', clientId };
+
+    if (!snapshot.loaded || snapshot.owner !== owner) {
+        return queued;
+    }
+
+    if (snapshot.outbox?.items.some((item) => item.client_id === clientId)) {
+        return queued;
+    }
+
+    const seizure = snapshot.cache?.seizures.find(
+        (candidate) => candidate.client_id === clientId,
+    );
+
+    return seizure === undefined ? queued : { kind: 'sent', seizure };
+}
+
 /**
  * Записывает приступ: сначала в outbox на диск, затем одна попытка
  * отправить именно эту запись. 2xx — sent, 422 — rejected (запись снята),
- * прочее — queued (уйдёт следующим flush). Если досылка уже идёт —
- * сразу queued, а после текущего прохода будет ещё один. С input.owner
- * запись ждёт стор этого владельца (см. RecordInput.owner).
+ * прочее — queued (уйдёт следующим flush). Если досылка уже идёт (старт
+ * приложения, возврат в него, загрузка журнала) — заказывает ещё проход и
+ * ждёт его: запись уходит этой досылкой, и при связи ответ — sent, а не
+ * преждевременное «сохранено на устройстве». С input.owner запись ждёт
+ * стор этого владельца (см. RecordInput.owner).
  */
 export async function recordSeizure(input: RecordInput): Promise<RecordResult> {
     if (!(await waitForStore(STORE_WAIT_MS, input.owner))) {
@@ -320,17 +343,18 @@ export async function recordSeizure(input: RecordInput): Promise<RecordResult> {
     const queued: RecordResult = { kind: 'queued', clientId };
     const owner = getSnapshot().owner;
 
-    if (active !== null) {
-        rerunRequested = true;
-
-        return queued;
-    }
-
     if (owner === null) {
         return queued;
     }
 
     const ownerAtStart: string = owner;
+
+    if (active !== null) {
+        rerunRequested = true;
+        await active;
+
+        return settledResult(ownerAtStart, clientId);
+    }
 
     return new Promise<RecordResult>((resolve) => {
         const attempt = async (): Promise<void> => {

@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { fetchProfile } from '@/api/profile';
 import type { UserProfile } from '@/api/types';
+import { useAuth } from '@/auth/AuthContext';
 import DonateDialog from '@/components/DonateDialog';
 import { OfflinePlaceholder } from '@/components/OfflinePlaceholder';
 import { AppText } from '@/components/ui/AppText';
@@ -32,6 +33,7 @@ export default function ProfileScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const { online } = useConnectivity();
+    const { rememberName } = useAuth();
 
     // null = грузим (скелетон); ошибка меню не блокирует.
     const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -56,6 +58,9 @@ export default function ProfileScreen() {
                 if (!cancelled) {
                     setProfile(response.data);
                 }
+
+                // Имя для аватара журнала — свежее, чем в сохранённой сессии.
+                void rememberName(response.data.name);
             })
             .catch(() => {
                 // Шапка остаётся скелетоном, пункты работают.
@@ -64,7 +69,7 @@ export default function ProfileScreen() {
         return () => {
             cancelled = true;
         };
-    }, [online, needProfile]);
+    }, [online, needProfile, rememberName]);
 
     function downloadUpdate(): void {
         void Linking.openURL(APK_DOWNLOAD_URL).catch(() => {

@@ -220,7 +220,7 @@ async function performRefresh(): Promise<void> {
         throw new ApiError('unauthorized', { status: 401 });
     }
 
-    await saveTokens(pair, stored.email);
+    await saveTokens(pair, stored.email, stored.name);
 }
 
 function expireSession(): void {

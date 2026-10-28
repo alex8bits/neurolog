@@ -102,6 +102,17 @@ EXPO_PUBLIC_API_BASE_URL=https://seizure.godnocode.ru/api/v1 npx expo prebuild -
 cd android && ./gradlew assembleRelease
 ```
 
+### Релиз одной командой
+
+[`build-release.sh`](./build-release.sh) делает весь релиз: поднимает версию в `app.json` (`0.0.16`/`16` → `0.0.17`/`17`), переносит её в `android/` (`expo prebuild --no-clean`), собирает `assembleRelease` с адресом из `.env.production`, проверяет APK и выкладывает его на прод по ssh-алиасу `sweb` в `/srv/www/seizure/public/downloads` — сначала `seizure.apk`, затем `app-release.json`, прежние файлы остаются как `*.prev`. Сбой на любом шаге возвращает `app.json` к прежней версии; после успеха закоммитьте `app.json`.
+
+```bash
+# из mobile/ (Git Bash); нужны node, unzip, ssh/scp, JAVA_HOME
+./build-release.sh
+```
+
+Проверки перед публикацией: в бандле именно прод-адрес API (не dev из `mobile/.env`), и APK подписан тем же ключом, что и все опубликованные версии (SHA-256 сертификата — `RELEASE_CERT_SHA256`). Release сейчас подписывается `debug.keystore` из шаблона Expo — он одинаковый при каждом prebuild; при смене ключа установленные приложения не обновятся поверх, поэтому скрипт такую сборку не публикует. Переопределяемые переменные: `RELEASE_SSH`, `RELEASE_DIR`, `RELEASE_CERT_SHA256`, `ANDROID_HOME` (по умолчанию — `sdk.dir` из `android/local.properties`).
+
 ### Публикация APK на сайт (раздача через сайт)
 
 Скрипт [`scripts/publish-apk.sh`](./scripts/publish-apk.sh) кладёт собранный APK в `public/downloads/seizure.apk` и пишет рядом `app-release.json` с версией. После этого:

@@ -105,7 +105,7 @@ function zoneSections(
  * сервером, на логин уводит гвард корня) и выход.
  */
 export default function SettingsScreen() {
-    const { logout, updateEmail, signOutLocally } = useAuth();
+    const { logout, updateEmail, rememberName, signOutLocally } = useAuth();
     const { pendingCount, failedCount } = useConnectivity();
 
     // Отступ статус-бара внутри Modal-пикера поясов.
@@ -334,6 +334,7 @@ export default function SettingsScreen() {
             }
 
             setProfile(updated);
+            void rememberName(updated.name);
 
             Alert.alert('', 'Профиль обновлён');
         } catch (error) {

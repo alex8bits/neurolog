@@ -16,7 +16,7 @@ export async function register(input: RegisterInput): Promise<void> {
         },
     });
 
-    await saveTokens(response.data, input.email);
+    await saveTokens(response.data, input.email, input.name);
 }
 
 export async function login(input: LoginInput): Promise<void> {

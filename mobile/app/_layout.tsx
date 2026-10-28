@@ -18,6 +18,7 @@ import type { ReactNode } from 'react';
 
 import { AuthProvider, useAuth } from '@/auth/AuthContext';
 import { resolveReturnTo } from '@/auth/returnTo';
+import { ConnectivityProvider } from '@/offline/ConnectivityContext';
 
 /**
  * Роутинг-гард (канон expo-router): до bootstrap ничего не рендерим,
@@ -80,17 +81,22 @@ export default function RootLayout() {
 
     return (
         <AuthProvider>
-            <AppGuard>
-                <Stack screenOptions={{ headerShown: false }}>
-                    {/* /quick — без жеста «назад»: под ним на тёплом старте
-                        может лежать журнал, который нельзя показывать. */}
-                    <Stack.Screen
-                        name="quick"
-                        options={{ gestureEnabled: false }}
-                    />
-                </Stack>
-                <StatusBar style="dark" />
-            </AppGuard>
+            {/* Связь и досылка очереди — в корне: срабатывает при запуске
+                по любой из двух иконок; рендер не блокирует. */}
+            <ConnectivityProvider>
+                <AppGuard>
+                    <Stack screenOptions={{ headerShown: false }}>
+                        {/* /quick — без жеста «назад»: под ним на тёплом
+                            старте может лежать журнал, который нельзя
+                            показывать. */}
+                        <Stack.Screen
+                            name="quick"
+                            options={{ gestureEnabled: false }}
+                        />
+                    </Stack>
+                    <StatusBar style="dark" />
+                </AppGuard>
+            </ConnectivityProvider>
         </AuthProvider>
     );
 }

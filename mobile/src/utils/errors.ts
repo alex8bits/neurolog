@@ -72,6 +72,10 @@ export function userMessage(error: ApiError): string {
     }
 }
 
+/** Текст для записи из очереди, которую сервер отверг (422) без ошибок
+ *  полей — userMessage для 'form' говорит про логин и сюда не подходит. */
+export const RECORD_REJECTED_TEXT = 'Сервер не принял запись.';
+
 /** Общий текст для неожиданных (не ApiError) сбоев. */
 export const GENERIC_ERROR_TEXT = 'Сервер недоступен, попробуйте позже.';
 

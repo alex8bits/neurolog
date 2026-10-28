@@ -21,7 +21,11 @@ export interface ApiFetchInit {
 
 type SessionExpiredHandler = () => void;
 
+type NetworkOutcomeHandler = (reachable: boolean) => void;
+
 const sessionExpiredHandlers = new Set<SessionExpiredHandler>();
+
+const networkOutcomeHandlers = new Set<NetworkOutcomeHandler>();
 
 /** «Поколение» сессии: инкремент инвалидирует ждущие refresh запросы. */
 let generation = 0;
@@ -38,6 +42,29 @@ export function onSessionExpired(handler: SessionExpiredHandler): () => void {
     };
 }
 
+/**
+ * Подписка на исход сетевого запроса: false — fetch не дошёл до сервера
+ * (TypeError), true — получен любой HTTP-ответ. Возвращает отписку.
+ */
+export function onNetworkOutcome(handler: NetworkOutcomeHandler): () => void {
+    networkOutcomeHandlers.add(handler);
+
+    return () => {
+        networkOutcomeHandlers.delete(handler);
+    };
+}
+
+function notifyNetworkOutcome(reachable: boolean): void {
+    for (const handler of networkOutcomeHandlers) {
+        try {
+            handler(reachable);
+        } catch {
+            // Исключение подписчика не должно ломать сам запрос и
+            // остальных подписчиков (как в expireSession).
+        }
+    }
+}
+
 /** Инвалидация очереди «поколением» токенов; вызывается при logout. */
 export function resetSession(): void {
     generation += 1;
@@ -48,6 +75,7 @@ export function __resetForTests(): void {
     generation = 0;
     refreshPromise = null;
     sessionExpiredHandlers.clear();
+    networkOutcomeHandlers.clear();
 }
 
 export async function apiFetch<T>(
@@ -225,8 +253,10 @@ async function request(
         }
     }
 
+    let response: Response;
+
     try {
-        return await fetch(`${API_BASE_URL}${path}`, {
+        response = await fetch(`${API_BASE_URL}${path}`, {
             method: init?.method ?? 'GET',
             headers,
             body:
@@ -236,11 +266,17 @@ async function request(
         });
     } catch (error) {
         if (error instanceof TypeError) {
+            notifyNetworkOutcome(false);
+
             throw new ApiError('network');
         }
 
         throw error;
     }
+
+    notifyNetworkOutcome(true);
+
+    return response;
 }
 
 async function toApiError(response: Response): Promise<ApiError> {

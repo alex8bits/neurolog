@@ -149,7 +149,12 @@ export function RecordButton({ onRecorded }: Props) {
                 accessibilityLabel="Записать приступ на другое время"
                 hitSlop={8}
                 style={styles.link}
-                onPress={() => router.push('/(journal)/new')}
+                onPress={() =>
+                    router.push({
+                        pathname: '/(journal)/new',
+                        params: { mode: 'other' },
+                    })
+                }
             >
                 <AppText variant="label" color="primary">
                     Другое время

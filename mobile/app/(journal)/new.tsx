@@ -1,5 +1,5 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
     KeyboardAvoidingView,
@@ -45,9 +45,18 @@ const FUTURE_TOLERANCE_MINUTES = 5;
  * errors.occurred_at — страховка на расхождение часов. Комментарий уходит,
  * только если поле раскрыто («+ комментарий») и заполнено. После 201 уходим
  * назад — список перечитается фокус-эффектом экрана журнала.
+ *
+ * Стартовый сегмент: без параметра — «Сейчас»; с `mode=other` (ссылка
+ * «Другое время» под кнопкой записи) сразу «Другое время» с пикерами,
+ * предзаполненными текущей минутой.
  */
 export default function NewSeizureScreen() {
     const router = useRouter();
+    const { mode } = useLocalSearchParams<{
+        mode?: string | string[];
+    }>();
+
+    const startsOther = mode === 'other';
 
     const [comment, setComment] = useState('');
 
@@ -60,10 +69,12 @@ export default function NewSeizureScreen() {
     );
 
     /** Включён ли режим «Другое время» (запись задним числом). */
-    const [exactTime, setExactTime] = useState(false);
+    const [exactTime, setExactTime] = useState(startsOther);
 
     /** Значение пикеров даты/времени; null, пока «Другое время» выключено. */
-    const [moment, setMoment] = useState<Date | null>(null);
+    const [moment, setMoment] = useState<Date | null>(() =>
+        startsOther ? startOfMinute() : null,
+    );
 
     /** Открытый диалог пикера: дата или время; null — закрыт. */
     const [pickerMode, setPickerMode] = useState<'date' | 'time' | null>(null);

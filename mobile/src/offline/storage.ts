@@ -77,11 +77,8 @@ export function removeFile(name: string): void {
     }
 }
 
-/**
- * Копия нечитаемого файла `<name>.corrupt-<timestamp>` для диагностики —
- * очередь с неотправленными данными молча не перезаписываем.
- */
-export async function backupCorrupt(name: string): Promise<void> {
+/** Копия файла (или его tmp) `<name>.<suffix>-<timestamp>`. */
+async function backupAs(name: string, suffix: string): Promise<void> {
     const source = fileFor(name).exists
         ? fileFor(name)
         : fileFor(tmpName(name));
@@ -90,7 +87,24 @@ export async function backupCorrupt(name: string): Promise<void> {
         return;
     }
 
-    await source.copy(fileFor(`${name}.corrupt-${Date.now()}`), {
+    await source.copy(fileFor(`${name}.${suffix}-${Date.now()}`), {
         overwrite: true,
     });
+}
+
+/**
+ * Копия нечитаемого файла `<name>.corrupt-<timestamp>` для диагностики —
+ * очередь с неотправленными данными молча не перезаписываем.
+ */
+export function backupCorrupt(name: string): Promise<void> {
+    return backupAs(name, 'corrupt');
+}
+
+/**
+ * Копия файла другого владельца `<name>.foreign-<timestamp>` — непустую
+ * очередь (например, после сбоя переименования владельца при смене
+ * email) перед удалением не теряем.
+ */
+export function backupForeign(name: string): Promise<void> {
+    return backupAs(name, 'foreign');
 }

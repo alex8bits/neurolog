@@ -75,14 +75,6 @@ export default function NewSeizureScreen() {
      *  submitting, а каждый recordSeizure — новый client_id и новая запись. */
     const inFlight = useRef(false);
     const mounted = useRef(true);
-
-    useEffect(() => {
-        mounted.current = true;
-
-        return () => {
-            mounted.current = false;
-        };
-    }, []);
     const [formError, setFormError] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>(
         {},
@@ -105,6 +97,14 @@ export default function NewSeizureScreen() {
 
     /** Время на подписи под кнопкой: фиксируется при открытии шторки. */
     const [openedAt] = useState(() => formatHm(new Date()));
+
+    useEffect(() => {
+        mounted.current = true;
+
+        return () => {
+            mounted.current = false;
+        };
+    }, []);
 
     /** Ввод после ошибки: чистим сообщение формы и запись поля. */
     function clearError(field: string): void {
@@ -216,7 +216,12 @@ export default function NewSeizureScreen() {
                 // Шторка закрывается: кнопку не разблокируем, флаг не
                 // снимаем — до размонтирования второй записи не будет.
                 closing = true;
-                router.back();
+
+                // Шторку могли закрыть тапом по фону во время сохранения —
+                // поздний back() закрыл бы экран под ней.
+                if (mounted.current) {
+                    router.back();
+                }
 
                 return;
             }

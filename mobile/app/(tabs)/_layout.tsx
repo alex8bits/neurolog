@@ -1,4 +1,6 @@
 import { Tabs } from 'expo-router';
+import { PlatformPressable } from 'expo-router/react-navigation';
+import type { BottomTabBarButtonProps } from 'expo-router/tabs';
 import { StyleSheet, View } from 'react-native';
 import type { ColorValue } from 'react-native';
 
@@ -10,8 +12,19 @@ function TabIcon({ color }: { color: ColorValue }) {
     return <View style={[styles.icon, { backgroundColor: color }]} />;
 }
 
-/** Опции вкладки, которой нужен сервер: офлайн приглушена и не
- *  открывается (tabPress отменяется в listeners). */
+/** Кнопка вкладки по умолчанию (PlatformPressable со всеми пропсами
+ *  навигатора), но для экранного диктора — в состоянии disabled. */
+function DisabledTabButton(props: BottomTabBarButtonProps) {
+    return (
+        <PlatformPressable
+            {...props}
+            accessibilityState={{ ...props.accessibilityState, disabled: true }}
+        />
+    );
+}
+
+/** Опции вкладки, которой нужен сервер: офлайн приглушена, для диктора
+ *  disabled и не открывается (tabPress отменяется в listeners). */
 function serverTabOptions(title: string, online: boolean) {
     return {
         title,
@@ -19,6 +32,7 @@ function serverTabOptions(title: string, online: boolean) {
             <TabIcon color={color} />
         ),
         tabBarItemStyle: online ? undefined : styles.disabledItem,
+        tabBarButton: online ? undefined : DisabledTabButton,
         tabBarAccessibilityLabel: online
             ? title
             : `${title} — недоступно без интернета`,

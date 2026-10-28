@@ -116,26 +116,53 @@ function waitForStore(timeoutMs: number, owner?: string): Promise<boolean> {
  * без перечитывания. Вызывается ConnectivityProvider при входе.
  */
 export function loadOwner(email: string): Promise<void> {
-    const snapshot = getSnapshot();
-
-    if (
-        snapshot.loaded &&
-        snapshot.owner !== null &&
-        sameEmail(snapshot.owner, email)
-    ) {
+    if (isLoadedFor(email)) {
         return Promise.resolve();
     }
 
     // Загрузка того же владельца уже идёт — новый loadStore поднял бы
-    // поколение и оборвал её.
+    // поколение и оборвал её. Но её мог обесценить clearStore (выход и
+    // сразу вход тем же email): тогда после ожидания стор не загружен —
+    // запускаем загрузку заново, один раз.
     if (
         loading !== null &&
         loadingEmail !== null &&
         sameEmail(loadingEmail, email)
     ) {
-        return loading;
+        const pending = loading;
+
+        return pending.then(() => {
+            if (isLoadedFor(email)) {
+                return;
+            }
+
+            if (loading !== null) {
+                // Перезагрузку того же email уже запустил другой ждавший —
+                // ждём её. Идёт загрузка другого email (выход и вход под
+                // другим аккаунтом) — этот вызов неактуален, не обрываем её.
+                return loadingEmail !== null && sameEmail(loadingEmail, email)
+                    ? loading
+                    : undefined;
+            }
+
+            return startLoad(email);
+        });
     }
 
+    return startLoad(email);
+}
+
+function isLoadedFor(email: string): boolean {
+    const snapshot = getSnapshot();
+
+    return (
+        snapshot.loaded &&
+        snapshot.owner !== null &&
+        sameEmail(snapshot.owner, email)
+    );
+}
+
+function startLoad(email: string): Promise<void> {
     const promise = loadStore(email).finally(() => {
         if (loading === promise) {
             loading = null;

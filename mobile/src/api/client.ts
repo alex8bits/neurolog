@@ -177,11 +177,15 @@ async function performRefresh(): Promise<void> {
     } catch (error) {
         if (error instanceof TypeError) {
             // Сервер недоступен — сессию НЕ убиваем: нет связи ≠ истекла.
+            notifyNetworkOutcome(false);
+
             throw new ApiError('network');
         }
 
         throw error;
     }
+
+    notifyNetworkOutcome(true);
 
     if (response.status === 401) {
         if (generation !== generationAtStart) {

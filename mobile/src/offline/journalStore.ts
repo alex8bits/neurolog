@@ -17,6 +17,7 @@ import {
 import { emptyOutbox, enqueue, markFailed, removeItem } from '@/offline/outbox';
 import {
     backupCorrupt,
+    backupForeign,
     fileExists,
     JOURNAL_CACHE_FILE,
     OUTBOX_FILE,
@@ -143,9 +144,12 @@ let epoch = 0;
 /**
  * Читает оба файла владельца owner. Владелец проверяется по каждому файлу
  * отдельно: удаляется только файл с чужим email (чужие данные не
- * показываются), файл текущего владельца не трогается. Нечитаемая очередь
+ * показываются; непустая чужая очередь перед удалением сохраняется копией
+ * `.foreign-<ts>`), файл текущего владельца не трогается. Нечитаемая очередь
  * перед удалением всегда сохраняется копией `.corrupt-<ts>`; нечитаемый
- * кэш — просто пустой (перезагрузится онлайн). До окончания загрузки стор
+ * кэш — просто пустой (перезагрузится онлайн). Сбой копии `.foreign` /
+ * `.corrupt` намеренно обрывает загрузку (стор остаётся не загружен):
+ * удалять очередь без копии нельзя. До окончания загрузки стор
  * выгружен — мутации прежнего владельца отклоняются.
  */
 export function loadStore(owner: string): Promise<void> {
@@ -176,6 +180,13 @@ export function loadStore(owner: string): Promise<void> {
                 removeFile(OUTBOX_FILE);
             }
         } else if (!sameOwner(outbox.owner, owner)) {
+            // Непустая очередь чужого владельца — копия перед удалением
+            // (сбой переименования при смене email не должен молча стереть
+            // неотправленные записи). Пустую удаляем как есть.
+            if (outbox.items.length > 0) {
+                await backupForeign(OUTBOX_FILE);
+            }
+
             removeFile(OUTBOX_FILE);
             outbox = null;
         }

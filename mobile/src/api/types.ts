@@ -34,6 +34,9 @@ export interface Seizure {
     occurred_at: string;
     comment: string | null;
     created_at: string | null;
+    /** UUID, переданный клиентом при создании (идемпотентность POST);
+     *  null у записей, созданных без него (веб, старые версии приложения). */
+    client_id: string | null;
 }
 
 /** Мета пагинатора Laravel в ответе GET /seizures: страницы считаются с 1,
@@ -59,14 +62,17 @@ export interface SeizureResponse {
 
 /**
  * Тело POST /seizures. occurred_at — опциональная наивная строка
- * `YYYY-MM-DDTHH:mm:ss` в поясе timezone; сервер нормализует её в UTC
- * (SeizureMomentNormalizer.php). Отсутствие поля — момент на сервере
- * ставится «сейчас».
+ * `YYYY-MM-DDTHH:mm:ss` в поясе timezone либо UTC-момент с `Z`
+ * (`2026-10-28T07:15:00.000Z`) — сервер доверяет смещению и нормализует
+ * в UTC (SeizureMomentNormalizer.php). Отсутствие поля — момент на сервере
+ * ставится «сейчас». client_id — UUID записи на устройстве: повтор POST с
+ * тем же client_id возвращает уже созданную запись, а не дубль.
  */
 export interface CreateSeizureInput {
     timezone: string; // IANA
     occurred_at?: string;
     comment?: string;
+    client_id?: string;
 }
 
 /** Параметры GET /seizures; from/to — Y-m-d, границы включительно (сервер

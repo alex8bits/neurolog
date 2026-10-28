@@ -19,6 +19,7 @@ const seizure = (id: number, occurredAt: string): Seizure => ({
     occurred_at: occurredAt,
     comment: null,
     created_at: null,
+    client_id: null,
 });
 
 describe('groupSeizuresByDay', () => {

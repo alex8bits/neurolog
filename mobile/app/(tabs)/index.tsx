@@ -2,6 +2,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
+    Alert,
     FlatList,
     Pressable,
     RefreshControl,
@@ -22,7 +23,7 @@ import { PeriodPicker } from '@/components/PeriodPicker';
 import { AppText } from '@/components/ui/AppText';
 import { deviceTimezone } from '@/config/timezone';
 import { useConnectivity } from '@/offline/ConnectivityContext';
-import { windowStartYmd } from '@/offline/journalCache';
+import { compareJournalOrder, windowStartYmd } from '@/offline/journalCache';
 import {
     getSnapshot,
     removeCachedSeizure,
@@ -85,9 +86,11 @@ const isServerPeriod = (period: PeriodFilter) =>
  * после старта запроса окна.
  *
  * «Всё» и «Период…» онлайн — серверный список с пагинацией (per_page=50,
- * loadMore по докрутке через appendSeizurePage), сверху — записи очереди
- * из диапазона. Офлайн эти периоды показывают то, что есть в сторе, с
- * пометкой «Без связи доступны только последние 30 дней».
+ * loadMore по докрутке через appendSeizurePage) плюс записи стора из
+ * диапазона, которых в нём нет (очередь и только что отправленные), в общем
+ * порядке compareJournalOrder. Офлайн (или если первая страница не пришла
+ * по сети) эти периоды показывают то, что есть в сторе, с пометкой «Без
+ * связи доступны только последние 30 дней».
  *
  * Строки сгруппированы по календарным дням (groupSeizuresByDay) в листы дня;
  * неотправленные записи помечены. Экспорт и меню — во вкладках «Отчёт» /
@@ -106,6 +109,10 @@ export default function JournalScreen() {
     // Серверный список для «Всё»/«Период…» онлайн; null — первая страница
     // ещё не пришла (отличаем «грузим» от «пусто»).
     const [serverItems, setServerItems] = useState<Seizure[] | null>(null);
+    // Первая страница серверного списка не пришла из-за сети, а online
+    // остался true (например, сбой на refresh токена): вместо вечной
+    // «Загрузки» показываем локальные записи, как офлайн.
+    const [serverListFailed, setServerListFailed] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [loadError, setLoadError] = useState<unknown>(null);
     const [inlineError, setInlineError] = useState<string | null>(null);
@@ -146,6 +153,17 @@ export default function JournalScreen() {
     // Экран в фокусе: перезагрузки по событиям стора/связи — только тогда.
     const focusedRef = useRef(false);
 
+    // Число идущих load(): переход online false→true, вызванный ответом
+    // самого load, не должен запускать второй (отменяющий первый) load.
+    const loadsInFlightRef = useRef(0);
+
+    // Связь появилась, пока load шёл: если этот load не довёл дело до
+    // конца (сеть упала / результат не применён), после него — ещё один.
+    const reloadPendingRef = useRef(false);
+
+    // Ссылка на load для повторного запуска из его же finally.
+    const loadRef = useRef<() => Promise<void>>(() => Promise.resolve());
+
     /**
      * Перечитывание журнала: досылка очереди → (онлайн) окно 30 дней в
      * снимок стора, для «Всё»/«Период…» — ещё первая страница серверного
@@ -158,8 +176,12 @@ export default function JournalScreen() {
         const moment = new Date();
         const periodAtStart = periodRef.current;
 
+        loadsInFlightRef.current += 1;
         setRefreshing(true);
         setNow(moment);
+
+        // Окно и серверный список получены и применены без сетевых сбоев.
+        let completed = false;
 
         try {
             await flush();
@@ -219,24 +241,50 @@ export default function JournalScreen() {
 
                 if (response !== null) {
                     setServerItems(response.data);
+                    setServerListFailed(false);
                     lastPageRef.current = response.meta.current_page;
                     setHasMore(
                         response.meta.current_page < response.meta.last_page,
                     );
                 }
-            } else if (error === null && !isNetworkError(pageResult.reason)) {
+            } else if (isNetworkError(pageResult.reason)) {
+                // Если серверный список ещё не загружался, экран покажет
+                // локальные записи с пометкой про 30 дней.
+                setServerListFailed(true);
+            } else if (error === null) {
                 error = pageResult.reason;
             }
 
             if (seq === requestSeqRef.current) {
                 setLoadError(error);
             }
+
+            completed =
+                windowResult.status === 'fulfilled' &&
+                pageResult.status === 'fulfilled';
         } finally {
+            loadsInFlightRef.current -= 1;
+
             if (seq === requestSeqRef.current) {
                 setRefreshing(false);
             }
+
+            // Отложенный по возврату связи перезапуск — один раз: флаг
+            // сбрасывается до вызова, новый ставит только следующий
+            // переход online false→true.
+            if (loadsInFlightRef.current === 0 && reloadPendingRef.current) {
+                reloadPendingRef.current = false;
+
+                if (!completed && focusedRef.current) {
+                    void loadRef.current();
+                }
+            }
         }
     }, []);
+
+    useEffect(() => {
+        loadRef.current = load;
+    }, [load]);
 
     /**
      * Догрузка следующей страницы серверного списка по докрутке до конца
@@ -314,6 +362,8 @@ export default function JournalScreen() {
     }, [store.loaded, load]);
 
     // Связь вернулась — дослать очередь и обновить окно / серверный список.
+    // Если load уже идёт, второй сейчас отменил бы его: перезапуск
+    // откладывается до конца идущего и нужен, только если тот не удался.
     const prevOnlineRef = useRef(online);
 
     useEffect(() => {
@@ -321,7 +371,11 @@ export default function JournalScreen() {
         prevOnlineRef.current = online;
 
         if (online && !wasOnline && focusedRef.current) {
-            void load();
+            if (loadsInFlightRef.current > 0) {
+                reloadPendingRef.current = true;
+            } else {
+                void load();
+            }
         }
     }, [online, load]);
 
@@ -359,7 +413,11 @@ export default function JournalScreen() {
     );
 
     const serverMode = isServerPeriod(period);
-    const showServerList = serverMode && online;
+    // Серверный список недоступен (офлайн или первая страница упала по
+    // сети) — показываем локальные записи с пометкой про 30 дней.
+    const serverFallback =
+        serverMode && (!online || (serverItems === null && serverListFailed));
+    const showServerList = serverMode && !serverFallback;
 
     // Строки списка; null — грузим (стор не загружен или первая страница
     // серверного списка ещё не пришла).
@@ -378,31 +436,55 @@ export default function JournalScreen() {
             return null;
         }
 
-        // Записи очереди из диапазона — сверху; уже пришедшие с сервера
-        // (тот же client_id) скрываются.
+        // К серверным страницам добавляются записи стора из диапазона,
+        // которых в них нет (дедуп по id и client_id): очередь и кэш —
+        // отправленная без перезагрузки списка запись (досылка по возврату
+        // в приложение, запись с экрана поверх журнала) уже ушла из
+        // очереди в кэш, но в загруженных страницах её нет.
+        const serverIds = new Set(serverItems.map((seizure) => seizure.id));
         const serverClientIds = new Set(
             serverItems.flatMap((seizure) =>
                 seizure.client_id === null ? [] : [seizure.client_id],
             ),
         );
-        const pending = filterByRange(
+        // Пока есть недогруженные страницы, записи кэша старше последней
+        // загруженной не добавляем — они придут со своей страницей, иначе
+        // в списке был бы разрыв между днями.
+        const oldestServer =
+            hasMore && serverItems.length > 0
+                ? serverItems[serverItems.length - 1]
+                : null;
+        const extra = filterByRange(
             entries.filter(
                 (entry) =>
-                    entry.sync !== 'synced' &&
+                    !serverIds.has(entry.id) &&
                     (entry.client_id === null ||
-                        !serverClientIds.has(entry.client_id)),
+                        !serverClientIds.has(entry.client_id)) &&
+                    (entry.sync !== 'synced' ||
+                        oldestServer === null ||
+                        compareJournalOrder(entry, oldestServer) <= 0),
             ),
             range,
         );
 
+        // Общий порядок (occurred_at DESC, id DESC): группы дней идут по
+        // порядку, старая неотправленная запись не всплывает наверх.
         return [
-            ...pending,
             ...serverItems.map((seizure): JournalEntry => ({
                 ...seizure,
                 sync: 'synced',
             })),
-        ];
-    }, [store.loaded, period, now, showServerList, entries, serverItems]);
+            ...extra,
+        ].sort(compareJournalOrder);
+    }, [
+        store.loaded,
+        period,
+        now,
+        showServerList,
+        entries,
+        serverItems,
+        hasMore,
+    ]);
 
     // Группы по календарным дням, порядок — как в listEntries.
     const dayGroups = useMemo(
@@ -449,6 +531,20 @@ export default function JournalScreen() {
                 return;
             }
 
+            // Шторка держит снимок записи: пока она была открыта, запись
+            // могли отправить — удалять из очереди уже нечего.
+            const clientId = entry.client_id;
+            const stillQueued =
+                getSnapshot().outbox?.items.some(
+                    (item) => item.client_id === clientId,
+                ) ?? false;
+
+            if (!stillQueued) {
+                Alert.alert('Запись уже отправлена на сервер');
+
+                return;
+            }
+
             try {
                 await removeOutbox(entry.client_id);
             } catch {
@@ -484,6 +580,7 @@ export default function JournalScreen() {
         periodRef.current = next;
         setPeriod(next);
         setServerItems(null);
+        setServerListFailed(false);
         setLoadError(null);
         setHasMore(false);
 
@@ -557,7 +654,7 @@ export default function JournalScreen() {
 
             <PeriodPicker value={period} onChange={applyPeriod} />
 
-            {store.loaded && serverMode && !online ? (
+            {store.loaded && serverFallback ? (
                 <AppText
                     variant="label"
                     color="muted"
@@ -630,7 +727,7 @@ export default function JournalScreen() {
             listEntries.length === 0 ? (
                 <View style={styles.state}>
                     <AppText color="muted" style={styles.emptyText}>
-                        {period.kind === 'all' && online
+                        {period.kind === 'all' && showServerList
                             ? 'Приступов пока нет. Нажмите «Записать приступ».'
                             : 'За выбранный период приступов нет.'}
                     </AppText>

@@ -114,6 +114,29 @@ class SeizureApiTest extends TestCase
         $response->assertJsonPath('data.occurred_at', '2026-05-10T09:15:00.000000Z');
     }
 
+    public function test_store_with_the_same_client_id_returns_the_existing_record(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        $payload = [
+            'client_id' => '3f0c6a1e-8b2d-4c5f-9a7e-1d2b3c4d5e6f',
+            'occurred_at' => '2026-05-10T09:00:00.000Z',
+            'timezone' => 'Europe/Moscow',
+            'comment' => null,
+        ];
+
+        $first = $this->postJson(route('api.v1.seizures.store'), $payload);
+        $second = $this->postJson(route('api.v1.seizures.store'), $payload);
+
+        $first->assertCreated();
+        $second->assertCreated();
+        $first->assertJsonPath('data.client_id', $payload['client_id']);
+        $second->assertJsonPath('data.client_id', $payload['client_id']);
+        $second->assertJsonPath('data.id', $first->json('data.id'));
+        $this->assertSame(1, $user->seizures()->count());
+    }
+
     public function test_user_cannot_delete_another_users_seizure(): void
     {
         $user = User::factory()->create();

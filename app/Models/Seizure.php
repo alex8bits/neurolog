@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 /**
  * @property int $id
  * @property int $user_id
+ * @property string|null $client_id
  * @property CarbonImmutable $occurred_at
  * @property string|null $comment
  * @property CarbonImmutable|null $created_at
@@ -20,7 +21,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property CarbonImmutable|null $deleted_at
  * @property-read User $user
  */
-#[Fillable(['occurred_at', 'comment'])]
+#[Fillable(['client_id', 'occurred_at', 'comment'])]
 class Seizure extends Model
 {
     /** @use HasFactory<SeizureFactory> */

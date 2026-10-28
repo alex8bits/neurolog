@@ -20,7 +20,10 @@ class StoreSeizureRequest extends FormRequest
      */
     public function rules(): array
     {
-        return $this->seizureRules();
+        return [
+            ...$this->seizureRules(),
+            'client_id' => ['nullable', 'string', 'uuid'],
+        ];
     }
 
     /**
@@ -55,5 +58,13 @@ class StoreSeizureRequest extends FormRequest
     public function timezoneInput(): ?string
     {
         return $this->filledString('timezone');
+    }
+
+    /**
+     * Get the client-generated idempotency key of the record, if any.
+     */
+    public function clientIdInput(): ?string
+    {
+        return $this->filledString('client_id');
     }
 }

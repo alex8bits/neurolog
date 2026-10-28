@@ -35,6 +35,7 @@ class SeizureController extends Controller
             $request->occurredAtInput(),
             $request->commentInput(),
             $request->timezoneInput(),
+            $request->clientIdInput(),
         );
 
         return SeizureResource::make($seizure)->response()->setStatusCode(201);

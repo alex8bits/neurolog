@@ -26,6 +26,7 @@ class SeizureResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'client_id' => $this->client_id,
             'occurred_at' => $this->occurred_at->toIso8601ZuluString('microsecond'),
             'comment' => $this->comment,
             'created_at' => $this->created_at?->toIso8601ZuluString('microsecond'),

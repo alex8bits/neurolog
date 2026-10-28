@@ -97,7 +97,8 @@ export default function JournalScreen() {
     const router = useRouter();
     const { user } = useAuth();
     const store = useJournalStore();
-    const { online } = useConnectivity();
+    const { online, networkKnown, pendingCount, failedCount } =
+        useConnectivity();
 
     // Отступ статус-бара: контент начинается под часами/уведомлениями.
     const insets = useSafeAreaInsets();
@@ -325,11 +326,15 @@ export default function JournalScreen() {
     }, [online, load]);
 
     // Проверка обновления — раз за жизнь процесса (флаг внутри модуля),
-    // стартовый системный диалог «Скачать / Позже». Fire-and-forget: сбои
-    // внутри fail-open, загрузку журнала не блокирует.
+    // стартовый системный диалог «Скачать / Позже». Только онлайн и после
+    // ответа expo-network: флаг ставится до сети, офлайн-старт сжёг бы
+    // единственную попытку. Эффект срабатывает при первом появлении сети;
+    // повторные вызовы — no-op. Fire-and-forget, сбои внутри fail-open.
     useEffect(() => {
-        void maybePromptUpdate();
-    }, []);
+        if (online && networkKnown) {
+            void maybePromptUpdate();
+        }
+    }, [online, networkKnown]);
 
     // Кэш 30 дней + очередь, без дублей по client_id.
     const entries = useMemo<JournalEntry[]>(
@@ -487,6 +492,9 @@ export default function JournalScreen() {
 
     const initial = (user?.email ?? '?').charAt(0).toUpperCase();
 
+    // «Не отправлено: N» — вся очередь, включая отвергнутые сервером.
+    const unsentCount = pendingCount + failedCount;
+
     // Серверный список не загрузился ни разу (не сетевая ошибка) —
     // полноэкранная ошибка с «Повторить».
     const fullError =
@@ -498,12 +506,30 @@ export default function JournalScreen() {
     const header = (
         <View>
             <View style={styles.header}>
-                <AppText variant="title">Журнал</AppText>
+                <View style={styles.headerText}>
+                    <AppText variant="title">
+                        {online ? 'Журнал' : 'Журнал (автономный режим)'}
+                    </AppText>
+                    {unsentCount > 0 ? (
+                        <AppText variant="label" color="muted">
+                            {`Не отправлено: ${unsentCount}`}
+                            {failedCount > 0
+                                ? ` · не удалось сохранить: ${failedCount}`
+                                : ''}
+                        </AppText>
+                    ) : null}
+                </View>
                 <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel="Профиль"
+                    accessibilityLabel={
+                        online
+                            ? 'Профиль'
+                            : 'Профиль — недоступно без интернета'
+                    }
+                    accessibilityState={{ disabled: !online }}
+                    disabled={!online}
                     hitSlop={4}
-                    style={styles.avatar}
+                    style={[styles.avatar, !online && styles.avatarDisabled]}
                     onPress={() => {
                         router.navigate('/profile');
                     }}
@@ -675,11 +701,15 @@ const styles = StyleSheet.create({
     header: {
         alignItems: 'center',
         flexDirection: 'row',
+        gap: spacing.md,
         justifyContent: 'space-between',
         paddingBottom: spacing.sm,
         paddingHorizontal: spacing.lg,
         paddingTop: spacing.sm,
     },
+    // Длинный заголовок офлайн переносится на вторую строку, не наезжая
+    // на аватар.
+    headerText: { flex: 1 },
     avatar: {
         alignItems: 'center',
         backgroundColor: colors.primarySoft,
@@ -688,6 +718,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         width: 36,
     },
+    avatarDisabled: { opacity: 0.4 },
     avatarLabel: { fontFamily: fontFamily.extrabold, fontSize: 16 },
     top: { paddingHorizontal: spacing.lg },
     weekSheet: {

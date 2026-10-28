@@ -23,6 +23,7 @@ import { DangerButton } from '@/components/ui/DangerButton';
 import { OutlineButton } from '@/components/ui/OutlineButton';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { TextField } from '@/components/ui/TextField';
+import { useConnectivity } from '@/offline/ConnectivityContext';
 import { colors, radius, spacing } from '@/theme/tokens';
 import { ApiError, userMessage } from '@/utils/errors';
 
@@ -37,6 +38,27 @@ const GENERIC_ERROR_TEXT = 'Сервер недоступен, попробуй�
  *  общий текст. */
 function loadErrorText(error: unknown): string {
     return error instanceof ApiError ? userMessage(error) : GENERIC_ERROR_TEXT;
+}
+
+/**
+ * Текст предупреждения о выходе с неотправленными записями: согласование
+ * «запись / записи / записей» и «не отправлена / не отправлены» по
+ * правилам pluralizeSeizures (utils/dayGroups.ts).
+ */
+function unsentWarningText(n: number): string {
+    const mod10 = n % 10;
+    const mod100 = n % 100;
+
+    if (mod10 === 1 && mod100 !== 11) {
+        return `${n} запись ещё не отправлена на сервер и будет удалена с телефона.`;
+    }
+
+    const noun =
+        mod10 >= 2 && mod10 <= 4 && !(mod100 >= 12 && mod100 <= 14)
+            ? 'записи'
+            : 'записей';
+
+    return `${n} ${noun} ещё не отправлены на сервер и будут удалены с телефона.`;
 }
 
 /** Секция SectionList пикера поясов: регион-заголовок + его зоны. */
@@ -84,6 +106,7 @@ function zoneSections(
  */
 export default function SettingsScreen() {
     const { logout, updateEmail, signOutLocally } = useAuth();
+    const { pendingCount, failedCount } = useConnectivity();
 
     // Отступ статус-бара внутри Modal-пикера поясов.
     const insets = useSafeAreaInsets();
@@ -435,8 +458,29 @@ export default function SettingsScreen() {
     }
 
     /** Выход (логика прежнего экрана настроек): гвард сам уведёт на
-     *  /(auth)/login после смены статуса. */
-    async function onLogout(): Promise<void> {
+     *  /(auth)/login после смены статуса. Выход стирает локальный журнал и
+     *  очередь — если в ней есть неотправленные записи, сначала
+     *  подтверждение с их количеством. */
+    function onLogout(): void {
+        const unsent = pendingCount + failedCount;
+
+        if (unsent === 0) {
+            void doLogout();
+
+            return;
+        }
+
+        Alert.alert('Выйти?', unsentWarningText(unsent), [
+            { text: 'Отмена', style: 'cancel' },
+            {
+                text: 'Выйти',
+                style: 'destructive',
+                onPress: () => void doLogout(),
+            },
+        ]);
+    }
+
+    async function doLogout(): Promise<void> {
         setLoggingOut(true);
 
         try {

@@ -2,6 +2,7 @@ import { Tabs } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import type { ColorValue } from 'react-native';
 
+import { useConnectivity } from '@/offline/ConnectivityContext';
 import { colors, fontFamily } from '@/theme/tokens';
 
 /** Иконка вкладки: скруглённый квадрат цвета вкладки (как .tabbar i в макете). */
@@ -9,12 +10,38 @@ function TabIcon({ color }: { color: ColorValue }) {
     return <View style={[styles.icon, { backgroundColor: color }]} />;
 }
 
+/** Опции вкладки, которой нужен сервер: офлайн приглушена и не
+ *  открывается (tabPress отменяется в listeners). */
+function serverTabOptions(title: string, online: boolean) {
+    return {
+        title,
+        tabBarIcon: ({ color }: { color: ColorValue }) => (
+            <TabIcon color={color} />
+        ),
+        tabBarItemStyle: online ? undefined : styles.disabledItem,
+        tabBarAccessibilityLabel: online
+            ? title
+            : `${title} — недоступно без интернета`,
+    };
+}
+
 /**
  * Нижние вкладки «Журнал / Отчёт / Профиль». Группа (tabs) не попадает в
  * URL: index остаётся маршрутом «/». Экраны new, edit, settings и т.д.
  * живут в группе (journal) корневого Stack и открываются поверх вкладок.
+ * Без сети «Отчёт» и «Профиль» недоступны — журнал работает офлайн.
  */
 export default function TabsLayout() {
+    const { online } = useConnectivity();
+
+    const blockOffline = {
+        tabPress: (event: { preventDefault: () => void }) => {
+            if (!online) {
+                event.preventDefault();
+            }
+        },
+    };
+
     return (
         <Tabs
             screenOptions={{
@@ -41,17 +68,13 @@ export default function TabsLayout() {
             />
             <Tabs.Screen
                 name="report"
-                options={{
-                    title: 'Отчёт',
-                    tabBarIcon: ({ color }) => <TabIcon color={color} />,
-                }}
+                options={serverTabOptions('Отчёт', online)}
+                listeners={blockOffline}
             />
             <Tabs.Screen
                 name="profile"
-                options={{
-                    title: 'Профиль',
-                    tabBarIcon: ({ color }) => <TabIcon color={color} />,
-                }}
+                options={serverTabOptions('Профиль', online)}
+                listeners={blockOffline}
             />
         </Tabs>
     );
@@ -59,4 +82,5 @@ export default function TabsLayout() {
 
 const styles = StyleSheet.create({
     icon: { borderRadius: 6, height: 20, width: 20 },
+    disabledItem: { opacity: 0.4 },
 });

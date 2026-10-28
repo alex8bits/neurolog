@@ -20,6 +20,11 @@ import { flush, loadOwner } from '@/offline/sync';
 interface ConnectivityValue {
     /** Есть сеть и последний API-вызов дошёл до сервера. */
     online: boolean;
+    /** Состояние сети уже получено от expo-network. До этого online — лишь
+     *  оптимистичное «да»: сетевые разовые проверки (обновление
+     *  приложения) ждут networkKnown, чтобы холодный старт офлайн их не
+     *  тратил. */
+    networkKnown: boolean;
     /** Записей в очереди, ждущих отправки. */
     pendingCount: number;
     /** Записей, отвергнутых сервером (422). */
@@ -46,6 +51,7 @@ export function ConnectivityProvider({ children }: { children: ReactNode }) {
     const store = useJournalStore();
 
     const [networkConnected, setNetworkConnected] = useState(true);
+    const [networkKnown, setNetworkKnown] = useState(false);
     const [apiReachable, setApiReachable] = useState(true);
 
     const email = status === 'authed' ? (user?.email ?? null) : null;
@@ -93,6 +99,7 @@ export function ConnectivityProvider({ children }: { children: ReactNode }) {
             const cameOnline = connected && !connectedBefore;
             connectedBefore = connected;
             setNetworkConnected(connected);
+            setNetworkKnown(true);
 
             if (cameOnline) {
                 // Сеть вернулась — снимаем прежний «сервер недоступен»;
@@ -106,6 +113,12 @@ export function ConnectivityProvider({ children }: { children: ReactNode }) {
             (state) => apply(isConnected(state)),
             (error: unknown) => {
                 console.warn('connectivity: состояние сети не получено', error);
+
+                // Без ответа модуля остаёмся на оптимистичном online —
+                // разовые проверки не должны ждать вечно.
+                if (!cancelled) {
+                    setNetworkKnown(true);
+                }
             },
         );
 
@@ -172,11 +185,12 @@ export function ConnectivityProvider({ children }: { children: ReactNode }) {
 
         return {
             online: networkConnected && apiReachable,
+            networkKnown,
             pendingCount,
             failedCount,
             syncNow,
         };
-    }, [items, networkConnected, apiReachable, syncNow]);
+    }, [items, networkConnected, networkKnown, apiReachable, syncNow]);
 
     return (
         <ConnectivityContext.Provider value={value}>

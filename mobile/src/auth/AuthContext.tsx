@@ -5,6 +5,8 @@ import * as authApi from '@/api/auth';
 import { onSessionExpired, resetSession } from '@/api/client';
 import type { LoginInput, RegisterInput } from '@/api/types';
 import { clearTokens, readTokens, updateStoredEmail } from '@/auth/tokens';
+import { clearStore, renameOwner } from '@/offline/journalStore';
+import { loadOwner } from '@/offline/sync';
 
 export type AuthStatus = 'unknown' | 'anonymous' | 'authed';
 
@@ -58,6 +60,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Refresh-очередь клиента сама чистит токены при refresh-401 и зовёт
     // подписчиков (AuthController.php:81-85) — здесь только статус.
+    // Локальный журнал и очередь НЕ стираются: после входа тем же email
+    // неотправленные записи уйдут на сервер (вход другим email их сотрёт
+    // через loadStore).
     useEffect(() => {
         const unsubscribe = onSessionExpired(() => {
             setState({ status: 'anonymous', user: null });
@@ -89,13 +94,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // статуса происходит в любом случае.
         await authApi.logout();
 
+        // Явный выход стирает журнал и очередь с телефона (предупреждение о
+        // неотправленных — на экране настроек).
+        await clearLocalData();
+
         setState({ status: 'anonymous', user: null });
     }
 
     /** После успешной смены email (PATCH /profile): новый email пишется и
-     *  в SecureStore, и в состояние — «Вы вошли как» не устаревает. */
+     *  в SecureStore, и в состояние — «Вы вошли как» не устаревает.
+     *
+     *  Локальный стор переименовывается ДО смены user.email: провайдер
+     *  связи на новый email зовёт loadOwner, и если бы стор ещё числился
+     *  за старым email, loadStore удалил бы кэш и очередь как чужие.
+     *  renameOwner меняет владельца в памяти синхронно, поэтому к моменту
+     *  setState стор уже «новый» и loadOwner его не перечитывает. Если
+     *  стор ещё грузится (холодный старт), сначала дожидаемся загрузки
+     *  под прежним email. */
     async function updateEmail(email: string): Promise<void> {
         await updateStoredEmail(email);
+
+        const previous = state.user?.email ?? null;
+
+        if (previous !== null) {
+            try {
+                await loadOwner(previous);
+                await renameOwner(email);
+            } catch (error) {
+                console.warn('auth: локальный журнал не переименован', error);
+            }
+        }
 
         setState((prev) =>
             prev.user === null ? prev : { ...prev, user: { email } },
@@ -112,7 +140,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         await clearTokens();
 
+        await clearLocalData();
+
         setState({ status: 'anonymous', user: null });
+    }
+
+    /** Стирает кэш журнала и очередь; сбой файловой системы не мешает
+     *  выходу (loadStore следующего владельца всё равно удалит чужие
+     *  файлы). */
+    async function clearLocalData(): Promise<void> {
+        try {
+            await clearStore();
+        } catch (error) {
+            console.warn('auth: локальный журнал не удалён', error);
+        }
     }
 
     const value: AuthContextValue = {

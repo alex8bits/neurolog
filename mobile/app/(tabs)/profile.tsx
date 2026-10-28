@@ -14,8 +14,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fetchProfile } from '@/api/profile';
 import type { UserProfile } from '@/api/types';
 import DonateDialog from '@/components/DonateDialog';
+import { OfflinePlaceholder } from '@/components/OfflinePlaceholder';
 import { AppText } from '@/components/ui/AppText';
 import { APK_DOWNLOAD_URL } from '@/config/env';
+import { useConnectivity } from '@/offline/ConnectivityContext';
 import { colors, fontFamily, spacing } from '@/theme/tokens';
 import { maybePromptUpdate } from '@/updates/prompt';
 
@@ -23,11 +25,13 @@ import { maybePromptUpdate } from '@/updates/prompt';
  * Вкладка «Профиль» (бывшее бургер-меню журнала): шапка с инициалом, имя и
  * email, пункты Настройки / Поддержать проект / Обратная связь и
  * «Скачать обновление» при найденной новой версии. «Выйти» живёт в
- * настройках.
+ * настройках. Без сети — заглушка; при возврате связи профиль
+ * догружается, если ещё не был получен.
  */
 export default function ProfileScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
+    const { online, networkKnown } = useConnectivity();
 
     // null = грузим (скелетон); ошибка меню не блокирует.
     const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -36,7 +40,14 @@ export default function ProfileScreen() {
     // Версия найденного обновления; null — нет/не проверено.
     const [updateVersion, setUpdateVersion] = useState<string | null>(null);
 
+    // Загрузка на монтирование и при возврате связи, пока профиля нет.
+    const needProfile = profile === null;
+
     useEffect(() => {
+        if (!online || !needProfile) {
+            return;
+        }
+
         let cancelled = false;
 
         fetchProfile()
@@ -52,12 +63,17 @@ export default function ProfileScreen() {
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [online, needProfile]);
 
     // Проверка обновления при показе вкладки (мета запрашивается один раз
-    // за процесс — повторные вызовы возвращают кэш).
+    // за процесс — повторные вызовы возвращают кэш). Только онлайн: офлайн
+    // попытка сожгла бы флаг одной проверки на процесс.
     useFocusEffect(
         useCallback(() => {
+            if (!online || !networkKnown) {
+                return;
+            }
+
             let cancelled = false;
 
             void maybePromptUpdate().then((version) => {
@@ -69,7 +85,7 @@ export default function ProfileScreen() {
             return () => {
                 cancelled = true;
             };
-        }, []),
+        }, [online, networkKnown]),
     );
 
     function downloadUpdate(): void {
@@ -99,6 +115,10 @@ export default function ProfileScreen() {
             onPress: () => router.push('/(journal)/feedback'),
         },
     ];
+
+    if (!online) {
+        return <OfflinePlaceholder />;
+    }
 
     return (
         <ScrollView

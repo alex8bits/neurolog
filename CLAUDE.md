@@ -49,6 +49,7 @@ Backend renders no Blade views for pages — controllers return `Inertia::render
 - **Tokens**: access tokens are Sanctum personal access tokens, refresh tokens are ours (`refresh_tokens` table, SHA-256 hashes, `revoked_at`). Issue, rotate and revoke them **only** through `App\Services\TokenService` — controllers never touch Sanctum or `RefreshToken` directly. Both lifetimes come from `config/sanctum.php` (`expiration`, plus our own `refresh_expiration`); never read them via `env()` at runtime.
 - **Fortify reuse**: API registration and password reset go through the same `app/Actions/Fortify/` actions as the web. Those actions re-validate their input with a `confirmed` rule, so pass `password_confirmation` explicitly — `$request->validated()` drops it.
 - **Summary**: `GET /api/v1/seizures/summary` returns `timezone`, `today`, `days` (30 entries `{date, count}`) and `period` (`from`, `to`, `total`, `days_with_seizures`). It is built by `App\Services\SeizureSummaryBuilder` (DTO `App\Support\SeizureSummary`), the same calculation the web journal receives as the `summary` prop.
+- **Idempotent create**: `POST /api/v1/seizures` accepts an optional `client_id` (UUID, unique per user); a repeat with the same `client_id` returns the owner's existing record (even soft-deleted) instead of creating a second row. `SeizureResource` exposes `client_id`.
 - **Owner scoping**: user-owned records are always resolved through the authenticated user (`$request->user()->seizures()`), never from a route parameter.
 
 ### Wayfinder (typed routes/actions — generated, do not hand-edit)
@@ -67,6 +68,8 @@ Backend renders no Blade views for pages — controllers return `Inertia::render
 ### Mobile app (`mobile/`)
 
 Expo (React Native, Android-only) client with its own [`mobile/README.md`](mobile/README.md). Colors, radius, spacing and type scale live only in `mobile/src/theme/tokens.ts` — no hex colors anywhere else (screens and components use the tokens and the primitives in `mobile/src/components/ui/`). Bottom tabs are `mobile/app/(tabs)/` (Журнал `index` at route `/`, Отчёт `report`, Профиль `profile`); the other screens live in `mobile/app/(journal)/` and open above the tabs.
+
+Offline mode lives in `mobile/src/offline/`: `journalStore` (30-day `journal-cache.json` + `outbox.json`, bound to the owner's email, cleared on logout), `sync` (`recordSeizure` writes to the outbox first, single-flight `flush`) and `ConnectivityContext` (`online`, unsent counts, sync triggers). Every new seizure goes through `recordSeizure`, never `createSeizure` directly.
 
 ### Auth model
 `app/Models/User.php` uses PHP-attribute config (`#[Fillable]`, `#[Hidden]`) rather than `$fillable`/`$hidden` properties, and implements `PasskeyUser` with `HasApiTokens` + `TwoFactorAuthenticatable` + `PasskeyAuthenticatable` traits; it owns `seizures()` and `refreshTokens()`. Fortify actions (`CreateNewUser`, `ResetUserPassword`) live in `app/Actions/Fortify/`; validation rules are shared via traits in `app/Concerns/`.

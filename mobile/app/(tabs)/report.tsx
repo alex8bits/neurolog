@@ -5,12 +5,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { fetchSummary } from '@/api/seizures';
 import type { SeizureSummaryPeriod } from '@/api/types';
+import { OfflinePlaceholder } from '@/components/OfflinePlaceholder';
 import { PeriodPicker } from '@/components/PeriodPicker';
 import { AppText } from '@/components/ui/AppText';
 import { OutlineButton } from '@/components/ui/OutlineButton';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { deviceTimezone } from '@/config/timezone';
 import { useJournalExport } from '@/hooks/useJournalExport';
+import { useConnectivity } from '@/offline/ConnectivityContext';
 import { colors, radius, spacing } from '@/theme/tokens';
 import { periodToRange } from '@/utils/period';
 import type { PeriodFilter } from '@/utils/period';
@@ -26,9 +28,12 @@ const SELF_TITLES = {
 /**
  * Вкладка «Отчёт»: период (независимый от журнала, дефолт «7 дней»), итоги
  * периода из GET /seizures/summary и экспорт — доктору, DOCX, себе.
+ * Без сети — заглушка (всё здесь серверное); при возврате связи итоги
+ * загружаются заново.
  */
 export default function ReportScreen() {
     const insets = useSafeAreaInsets();
+    const { online } = useConnectivity();
 
     const [period, setPeriod] = useState<PeriodFilter>({ kind: 'last7' });
 
@@ -55,9 +60,14 @@ export default function ReportScreen() {
         clearActionError();
     }
 
-    // Итоги: при фокусе и смене периода; устаревший ответ отбрасывается.
+    // Итоги: при фокусе, смене периода и возврате связи; устаревший ответ
+    // отбрасывается. Офлайн не запрашиваем — экран показывает заглушку.
     useFocusEffect(
         useCallback(() => {
+            if (!online) {
+                return;
+            }
+
             let cancelled = false;
 
             setTotals(null);
@@ -81,8 +91,12 @@ export default function ReportScreen() {
             return () => {
                 cancelled = true;
             };
-        }, [period]),
+        }, [period, online]),
     );
+
+    if (!online) {
+        return <OfflinePlaceholder />;
+    }
 
     return (
         <ScrollView

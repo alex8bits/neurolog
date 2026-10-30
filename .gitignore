@@ -30,6 +30,8 @@ yarn-error.log
 /.zed
 /.mavis
 /.zcode
+/.cursor
+/.claude
 
 # EFK stack (profile=logs) runtime data — never commit.
 # Configs under dockerfiles/{elasticsearch,kibana,fluent-bit} ARE committed.

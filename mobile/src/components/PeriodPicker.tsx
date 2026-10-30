@@ -8,6 +8,7 @@ import { colors, radius, spacing } from '@/theme/tokens';
 import { isCustomRangeValid } from '@/utils/period';
 import type { PeriodFilter } from '@/utils/period';
 import { formatYmd } from '@/utils/time';
+import { parseYmdLocal } from '@/utils/ymd';
 
 type PresetKind = 'today' | 'last7' | 'last30' | 'all';
 
@@ -19,13 +20,6 @@ const PERIOD_OPTIONS: { value: PresetKind; label: string }[] = [
     { value: 'last30', label: '30 дн.' },
     { value: 'all', label: 'Всё' },
 ];
-
-/** «2026-05-10» → локальная полночь этого дня (для черновика дат). */
-function parseYmdLocal(ymd: string): Date {
-    const [y, m, d] = ymd.split('-').map(Number);
-
-    return new Date(y, m - 1, d);
-}
 
 type Props = {
     value: PeriodFilter;

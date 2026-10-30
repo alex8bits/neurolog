@@ -24,6 +24,7 @@ import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { getInitials } from '@/composables/useInitials';
 import { dashboard } from '@/routes';
 import { edit as feedbackEdit } from '@/routes/feedback';
+import { index as medicationsIndex } from '@/routes/medications';
 import type { BreadcrumbItem, NavItem } from '@/types';
 
 type Props = {
@@ -42,6 +43,7 @@ const { appVersion } = useAppDownload();
 
 const mainNavItems: NavItem[] = [
     { title: 'Журнал', href: dashboard() },
+    { title: 'Медикаменты', href: medicationsIndex() },
     { title: 'Обратная связь', href: feedbackEdit().url },
 ];
 </script>

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Http\Resources\SeizureRowResource;
 use App\Support\SeizurePeriodReport;
 use PhpOffice\PhpWord\PhpWord;
+use PhpOffice\PhpWord\Settings;
 
 /**
  * Builds the DOCX body for a {@see SeizurePeriodReport}. Format rules live
@@ -28,6 +29,10 @@ class SeizureDocxBuilder
 
     public function build(SeizurePeriodReport $report): PhpWord
     {
+        // Без этого PhpWord пишет текст в document.xml как есть: «&» или «<»
+        // в названии лекарства или комментарии ломают файл.
+        Settings::setOutputEscapingEnabled(true);
+
         $phpWord = new PhpWord;
         $phpWord->setDefaultFontName(self::FONT);
         $phpWord->setDefaultFontSize(self::SIZE_BODY);
@@ -47,12 +52,20 @@ class SeizureDocxBuilder
             'marginLeft' => 1200, 'marginRight' => 1200,
         ]);
 
-        foreach ($report->days as $dayIndex => $day) {
-            if ($dayIndex > 0) {
-                $section->addTextBreak(1);   // пустая строка между днями (требование §8)
+        foreach ($report->days as $blockIndex => $block) {
+            if ($blockIndex > 0) {
+                $section->addTextBreak(1);   // пустая строка между блоками (требование §8)
             }
-            $section->addText($day->date, 'day-header', 'day-block');
-            foreach ($day->entries as $entry) {
+            $section->addText($block->label, 'day-header', 'day-block');
+            if ($block->medications !== []) {
+                $section->addText(implode(', ', $block->medications), null, 'day-block');
+            }
+            if ($block->quiet) {
+                $section->addText('Без приступов', null, 'day-block');
+
+                continue;
+            }
+            foreach ($block->entries as $entry) {
                 $line = $entry['time'].($entry['comment'] ? ' '.$entry['comment'] : '');
                 $section->addText($line, null, 'day-block');
             }

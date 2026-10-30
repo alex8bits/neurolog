@@ -8,6 +8,7 @@ use App\Http\Requests\Seizures\StoreSeizureRequest;
 use App\Http\Requests\Seizures\UpdateSeizureRequest;
 use App\Http\Resources\SeizureRowResource;
 use App\Mail\JournalReport;
+use App\Services\MedicationQuery;
 use App\Services\SeizureDocxBuilder;
 use App\Services\SeizureQuery;
 use App\Services\SeizureSummaryBuilder;
@@ -44,6 +45,7 @@ class SeizureController extends Controller
         private readonly SeizureQuery $query,
         private readonly SeizureWriter $writer,
         private readonly SeizureDocxBuilder $docxBuilder,
+        private readonly MedicationQuery $medications,
         private readonly SeizureSummaryBuilder $summaryBuilder,
     ) {}
 
@@ -151,6 +153,7 @@ class SeizureController extends Controller
             from: $period['from'],
             to: $period['to'],
             query: $this->query,
+            medications: $this->medications,
         );
 
         $filename = JournalFilename::for($report->from, $report->to);
@@ -182,6 +185,7 @@ class SeizureController extends Controller
             from: $period['from'],
             to: $period['to'],
             query: $this->query,
+            medications: $this->medications,
         );
 
         return view('journal.print', ['report' => $report]);
@@ -202,6 +206,7 @@ class SeizureController extends Controller
             from: $period['from'],
             to: $period['to'],
             query: $this->query,
+            medications: $this->medications,
         );
 
         Mail::send(new JournalReport(
@@ -248,6 +253,7 @@ class SeizureController extends Controller
             from: $period['from'],
             to: $period['to'],
             query: $this->query,
+            medications: $this->medications,
         );
 
         $bodyInput = $request->bodyInput();

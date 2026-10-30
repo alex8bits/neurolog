@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\FeedbackController;
 use App\Http\Controllers\Api\V1\JournalExportController;
+use App\Http\Controllers\Api\V1\MedicationController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\SeizureController;
 use Illuminate\Support\Facades\Route;
@@ -77,6 +78,20 @@ Route::middleware('auth:sanctum')->name('api.v1.')->group(function () {
     Route::post('seizures/email-doctor', [JournalExportController::class, 'emailDoctor'])
         ->middleware('throttle:5,1')
         ->name('seizures.email-doctor');
+
+    Route::get('medications', [MedicationController::class, 'index'])->name('medications.index');
+
+    Route::post('medications', [MedicationController::class, 'store'])->name('medications.store');
+
+    // Параметр {medication} намеренно без route-model binding: разрешение записи
+    // с проверкой владельца делает MedicationWriter через $request->user()->medications().
+    Route::patch('medications/{medication}', [MedicationController::class, 'update'])
+        ->whereNumber('medication')
+        ->name('medications.update');
+
+    Route::delete('medications/{medication}', [MedicationController::class, 'destroy'])
+        ->whereNumber('medication')
+        ->name('medications.destroy');
 
     // Обратная связь: письмо владельцу проекта (config feedback.address);
     // анонимный флаг отправляет только текст. Лимит жёстче экспортных

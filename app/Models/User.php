@@ -6,6 +6,7 @@ namespace App\Models;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -29,6 +30,8 @@ use Laravel\Sanctum\HasApiTokens;
  * @property string|null $remember_token
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
+ * @property-read Collection<int, Seizure> $seizures
+ * @property-read Collection<int, Medication> $medications
  */
 #[Fillable(['name', 'email', 'timezone', 'password'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
@@ -59,6 +62,16 @@ class User extends Authenticatable implements PasskeyUser
     public function seizures(): HasMany
     {
         return $this->hasMany(Seizure::class);
+    }
+
+    /**
+     * The medications the user takes or has taken.
+     *
+     * @return HasMany<Medication, $this>
+     */
+    public function medications(): HasMany
+    {
+        return $this->hasMany(Medication::class);
     }
 
     /**

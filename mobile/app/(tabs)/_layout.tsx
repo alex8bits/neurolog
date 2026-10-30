@@ -41,10 +41,11 @@ function serverTabOptions(title: string, online: boolean) {
 }
 
 /**
- * Нижние вкладки «Журнал / Отчёт / Профиль». Группа (tabs) не попадает в
- * URL: index остаётся маршрутом «/». Экраны new, edit, settings и т.д.
- * живут в группе (journal) корневого Stack и открываются поверх вкладок.
- * Без сети «Отчёт» и «Профиль» недоступны — журнал работает офлайн.
+ * Нижние вкладки «Журнал / Медикаменты / Отчёт / Профиль». Группа (tabs)
+ * не попадает в URL: index остаётся маршрутом «/». Экраны new, edit,
+ * medication, settings и т.д. живут в группе (journal) корневого Stack и
+ * открываются поверх вкладок. Без сети «Медикаменты», «Отчёт» и «Профиль»
+ * недоступны — журнал работает офлайн.
  * Здесь же — единственный триггер проверки обновления (старт и возврат
  * из фона). Поверх /quick (тёплый старт иконкой «Приступ») проверка не
  * идёт — выполнится при возврате на вкладки.
@@ -85,6 +86,11 @@ export default function TabsLayout() {
                     title: 'Журнал',
                     tabBarIcon: ({ color }) => <TabIcon color={color} />,
                 }}
+            />
+            <Tabs.Screen
+                name="medications"
+                options={serverTabOptions('Медикаменты', online)}
+                listeners={blockOffline}
             />
             <Tabs.Screen
                 name="report"

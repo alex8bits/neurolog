@@ -39,8 +39,8 @@ export interface Seizure {
     client_id: string | null;
 }
 
-/** Мета пагинатора Laravel в ответе GET /seizures: страницы считаются с 1,
- *  записи — по 50 свежайших (occurred_at DESC, id DESC). */
+/** Мета пагинатора Laravel (GET /seizures, GET /medications): страницы
+ *  считаются с 1; размер страницы — per_page запроса. */
 export interface SeizureListMeta {
     current_page: number;
     last_page: number;
@@ -181,4 +181,52 @@ export interface SummaryParams {
     timezone: string; // IANA
     from?: string; // Y-m-d
     to?: string; // Y-m-d
+}
+
+/** Единица дозировки лекарства. */
+export type MedicationUnit = 'mg' | 'ml';
+
+/** Статус приёма относительно «сегодня» в поясе запроса (считает сервер). */
+export type MedicationStatus = 'planned' | 'active' | 'finished';
+
+/** Лекарство пользователя (MedicationResource, API V1). */
+export interface Medication {
+    id: number;
+    name: string;
+    /** Строка с 2 знаками ("750.00") — точное значение decimal с сервера. */
+    dosage: string;
+    unit: MedicationUnit;
+    start_date: string; // Y-m-d
+    end_date: string | null; // Y-m-d; null — приём без даты окончания
+    status: MedicationStatus;
+    created_at: string | null;
+}
+
+/** Тело GET /medications — пагинатор Laravel; links клиенту не нужен. */
+export interface MedicationListResponse {
+    data: Medication[];
+    meta: SeizureListMeta;
+}
+
+/** Тело ответа POST (201) / PATCH (200) /medications — обёртка data. */
+export interface MedicationResponse {
+    data: Medication;
+}
+
+/** Тело POST /medications и PATCH /medications/{id}; dosage — строка с
+ *  точкой ("2.5"), см. normalizeDosageInput. */
+export interface MedicationInput {
+    name: string;
+    dosage: string;
+    unit: MedicationUnit;
+    start_date: string; // Y-m-d
+    end_date: string | null; // Y-m-d
+}
+
+/** Фильтры GET /medications; from/to — Y-m-d, пересечение с периодом приёма. */
+export interface MedicationFilters {
+    q?: string;
+    from?: string; // Y-m-d
+    to?: string; // Y-m-d
+    status?: MedicationStatus;
 }

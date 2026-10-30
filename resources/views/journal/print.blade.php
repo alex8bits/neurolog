@@ -36,15 +36,22 @@
         <h1>Журнал приступов</h1>
         <p class="meta">{{ $report->periodLabel() }}</p>
 
-        @forelse ($report->days as $day)
-            <h2>{{ $day->date }}</h2>
-            @foreach ($day->entries as $entry)
-                <p>
-                    {{ $entry['time'] }}@if ($entry['comment'])
-                        {{ $entry['comment'] }}
-                    @endif
-                </p>
-            @endforeach
+        @forelse ($report->days as $block)
+            <h2>{{ $block->label }}</h2>
+            @if ($block->medications !== [])
+                <p>{{ implode(', ', $block->medications) }}</p>
+            @endif
+            @if ($block->quiet)
+                <p>Без приступов</p>
+            @else
+                @foreach ($block->entries as $entry)
+                    <p>
+                        {{ $entry['time'] }}@if ($entry['comment'])
+                            {{ $entry['comment'] }}
+                        @endif
+                    </p>
+                @endforeach
+            @endif
         @empty
             <p class="empty">За выбранный период приступов нет.</p>
         @endforelse

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\FeedbackController;
+use App\Http\Controllers\MedicationController;
 use App\Http\Controllers\SeizureController;
 use Illuminate\Support\Facades\Route;
 
@@ -35,6 +36,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('seizures/email-doctor', [SeizureController::class, 'emailDoctor'])
         ->middleware('throttle:5,1')
         ->name('seizures.email-doctor');
+
+    Route::get('medications', [MedicationController::class, 'index'])
+        ->name('medications.index');
+
+    Route::post('medications', [MedicationController::class, 'store'])
+        ->name('medications.store');
+
+    Route::patch('medications/{medication}', [MedicationController::class, 'update'])
+        ->whereNumber('medication')
+        ->name('medications.update');
+
+    Route::delete('medications/{medication}', [MedicationController::class, 'destroy'])
+        ->whereNumber('medication')
+        ->name('medications.destroy');
 
     // Обратная связь: письмо владельцу проекта (config feedback.address);
     // анонимный флаг отправляет только текст. Лимит жёстче экспортных

@@ -7,6 +7,7 @@ use App\Http\Controllers\SeizureController;
 use App\Http\Requests\Api\V1\EmailDoctorRequest;
 use App\Http\Requests\Api\V1\IndexSeizureRequest;
 use App\Mail\JournalReport;
+use App\Services\MedicationQuery;
 use App\Services\SeizureDocxBuilder;
 use App\Services\SeizureQuery;
 use App\Support\JournalFilename;
@@ -34,6 +35,7 @@ class JournalExportController extends Controller
     public function __construct(
         private readonly SeizureQuery $query,
         private readonly SeizureDocxBuilder $docxBuilder,
+        private readonly MedicationQuery $medications,
     ) {}
 
     /**
@@ -53,6 +55,7 @@ class JournalExportController extends Controller
             from: $request->fromInput(),
             to: $request->toInput(),
             query: $this->query,
+            medications: $this->medications,
             timezone: $request->timezoneInput(),
         );
 
@@ -81,6 +84,7 @@ class JournalExportController extends Controller
             from: $request->fromInput(),
             to: $request->toInput(),
             query: $this->query,
+            medications: $this->medications,
             timezone: $request->timezoneInput(),
         );
 
@@ -121,6 +125,7 @@ class JournalExportController extends Controller
             from: $period['from'],
             to: $period['to'],
             query: $this->query,
+            medications: $this->medications,
             timezone: $period['timezone'],
         );
 

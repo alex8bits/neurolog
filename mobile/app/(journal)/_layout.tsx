@@ -17,7 +17,8 @@ const headerOptions = {
 
 /**
  * Группа «Журнал» — экраны поверх вкладок (маршрут «/» в группе (tabs)):
- * edit, email-doctor, feedback и settings — нативный header со back;
+ * edit, email-doctor, feedback, medication и settings — нативный header
+ * со back;
  * new — шторка снизу (transparentModal) без заголовка.
  */
 export default function JournalLayout() {
@@ -34,6 +35,10 @@ export default function JournalLayout() {
             <Stack.Screen
                 name="feedback"
                 options={{ ...headerOptions, title: 'Обратная связь' }}
+            />
+            <Stack.Screen
+                name="medication"
+                options={{ ...headerOptions, title: 'Медикамент' }}
             />
             <Stack.Screen
                 name="new"

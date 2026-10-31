@@ -9,6 +9,7 @@ import type { MedicationUnit } from '@/api/types';
 const UNIT_LABELS: Record<MedicationUnit, string> = {
     mg: 'мг',
     ml: 'мл',
+    drop: 'кап',
     pil: 'таб',
 };
 

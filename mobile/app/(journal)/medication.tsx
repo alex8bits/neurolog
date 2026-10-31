@@ -41,6 +41,7 @@ const UNIT_OPTIONS = [
     { value: 'pil', label: 'таб' },
     { value: 'mg', label: 'мг' },
     { value: 'ml', label: 'мл' },
+    { value: 'drop', label: 'кап' },
 ] as const satisfies readonly { value: MedicationUnit; label: string }[];
 
 /** Единица для новой записи (и для неизвестного значения параметра). */

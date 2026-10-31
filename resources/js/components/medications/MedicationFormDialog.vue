@@ -48,6 +48,7 @@ const UNIT_OPTIONS: { value: MedicationUnit; label: string }[] = [
     { value: 'pil', label: 'таб' },
     { value: 'mg', label: 'мг' },
     { value: 'ml', label: 'мл' },
+    { value: 'drop', label: 'кап' },
 ];
 
 // Единица по умолчанию для новой записи — таблетки.

@@ -184,7 +184,7 @@ export interface SummaryParams {
 }
 
 /** Единица дозировки лекарства. */
-export type MedicationUnit = 'pil' | 'mg' | 'ml';
+export type MedicationUnit = 'pil' | 'mg' | 'ml' | 'drop';
 
 /** Статус приёма относительно «сегодня» в поясе запроса (считает сервер). */
 export type MedicationStatus = 'planned' | 'active' | 'finished';

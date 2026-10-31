@@ -144,7 +144,9 @@ export default function MedicationScreen() {
 
     function applyError(error: unknown): void {
         if (error instanceof ApiError) {
-            if (error.kind === 'not_found') {
+            // «Не найден» — только про правку существующей записи: 404 на
+            // создании значит, что на сервере нет самого маршрута.
+            if (error.kind === 'not_found' && editing) {
                 setNotFound(true);
 
                 return;

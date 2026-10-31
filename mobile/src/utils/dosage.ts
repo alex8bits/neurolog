@@ -9,6 +9,7 @@ import type { MedicationUnit } from '@/api/types';
 const UNIT_LABELS: Record<MedicationUnit, string> = {
     mg: 'мг',
     ml: 'мл',
+    pil: 'таб',
 };
 
 /** "750.00000" → "750", "2.50000" → "2,5", "0.25000" → "0,25". */
@@ -22,7 +23,7 @@ function trimDecimal(dosage: string): string {
     return value.replace(/0+$/, '').replace(/\.$/, '').replace('.', ',');
 }
 
-/** Как на сервере: "750.00000" + mg → "750мг", "2.50000" + ml → "2,5мл". */
+/** Как на сервере: "750.00000" + mg → "750мг", "2.50000" + ml → "2,5мл", "2.00000" + pil → "2таб". */
 export function formatDosage(dosage: string, unit: MedicationUnit): string {
     return `${trimDecimal(dosage)}${UNIT_LABELS[unit]}`;
 }

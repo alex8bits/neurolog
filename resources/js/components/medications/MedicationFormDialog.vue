@@ -46,6 +46,7 @@ const page = usePage();
 const UNIT_OPTIONS: { value: MedicationUnit; label: string }[] = [
     { value: 'mg', label: 'мг' },
     { value: 'ml', label: 'мл' },
+    { value: 'pil', label: 'таб' },
 ];
 
 const formDefinition = computed(() =>

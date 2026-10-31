@@ -39,7 +39,13 @@ const NAME_MAX_LENGTH = 255;
 const UNIT_OPTIONS = [
     { value: 'mg', label: 'мг' },
     { value: 'ml', label: 'мл' },
+    { value: 'pil', label: 'таб' },
 ] as const satisfies readonly { value: MedicationUnit; label: string }[];
+
+/** Единица из роут-параметра; неизвестное значение → мг. */
+function parseUnit(value: string): MedicationUnit {
+    return UNIT_OPTIONS.find((option) => option.value === value)?.value ?? 'mg';
+}
 
 /** Роут-параметры от карточки списка; значения теоретически массивы
  *  (повтор имени параметра) — сужаем firstParam-ом. Без id — создание. */
@@ -111,7 +117,7 @@ export default function MedicationScreen() {
         return initial === '' ? '' : dosageToInput(initial);
     });
     const [unit, setUnit] = useState<MedicationUnit>(() =>
-        firstParam(params.unit) === 'ml' ? 'ml' : 'mg',
+        parseUnit(firstParam(params.unit)),
     );
     const [startDate, setStartDate] = useState(() => {
         const initial = firstParam(params.start_date);

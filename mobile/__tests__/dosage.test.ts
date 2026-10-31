@@ -9,6 +9,7 @@ describe('formatDosage', () => {
 
     it('хвостовой ноль убирается, разделитель — запятая', () => {
         expect(formatDosage('2.50', 'ml')).toBe('2,5мл');
+        expect(formatDosage('2.00000', 'pil')).toBe('2таб');
     });
 });
 

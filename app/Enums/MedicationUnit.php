@@ -4,9 +4,9 @@ namespace App\Enums;
 
 enum MedicationUnit: string
 {
+    case Pil = 'pil';
     case Mg = 'mg';
     case Ml = 'ml';
-    case Pil = 'pil';
 
     /**
      * Human-readable (Russian) unit label.
@@ -14,9 +14,9 @@ enum MedicationUnit: string
     public function label(): string
     {
         return match ($this) {
+            self::Pil => 'таб',
             self::Mg => 'мг',
             self::Ml => 'мл',
-            self::Pil => 'таб'
         };
     }
 }

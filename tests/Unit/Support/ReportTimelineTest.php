@@ -57,15 +57,18 @@ class ReportTimelineTest extends TestCase
         $this->assertTrue($blocks[0]->quiet);
     }
 
-    public function test_cycle_is_appended_to_the_label_and_kept_on_every_day(): void
+    public function test_cycled_medication_appears_only_on_intake_days(): void
     {
-        $blocks = ReportTimeline::build('2026-10-25', '2026-10-27', [], [
-            $this->medication('Вигабатрин', '750', '2026-10-25', '2026-10-27', 1, 2),
+        $blocks = ReportTimeline::build('2026-10-25', '2026-10-28', [], [
+            $this->medication('Вигабатрин', '750', '2026-10-25', null, 1, 2),
         ]);
 
-        $this->assertCount(1, $blocks);
-        $this->assertSame('25.10.2026 - 27.10.2026', $blocks[0]->label);
-        $this->assertSame(['Вигабатрин 750мг (приём 1 дн. / перерыв 2 дн.)'], $blocks[0]->medications);
+        $line = 'Вигабатрин 750мг (приём 1 дн. / перерыв 2 дн.)';
+        $this->assertSame(
+            ['25.10.2026', '26.10.2026 - 27.10.2026', '28.10.2026'],
+            array_map(fn ($block) => $block->label, $blocks),
+        );
+        $this->assertSame([[$line], [], [$line]], array_map(fn ($block) => $block->medications, $blocks));
     }
 
     /**

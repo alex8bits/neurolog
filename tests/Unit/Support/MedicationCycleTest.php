@@ -16,4 +16,14 @@ class MedicationCycleTest extends TestCase
     {
         $this->assertSame('приём 1 дн. / перерыв 2 дн.', MedicationCycle::label(1, 2));
     }
+
+    public function test_intake_day_follows_the_cycle_from_start(): void
+    {
+        $days = array_map(
+            fn (string $date) => MedicationCycle::isIntakeDay(2, 1, '2026-10-30', $date),
+            ['2026-10-30', '2026-10-31', '2026-11-01', '2026-11-02'],
+        );
+
+        $this->assertSame([true, true, false, true], $days);
+    }
 }

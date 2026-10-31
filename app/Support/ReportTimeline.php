@@ -9,7 +9,7 @@ use Carbon\CarbonImmutable;
  * Lays out every day of a report period as {@see ReportBlock}s: a day with
  * seizures is its own block, consecutive seizure-free days with the same
  * set of medications collapse into one quiet run. Pure: no database access.
- * The intake cycle is part of a medication's label, not a filter of days.
+ * A cycled medication appears only on its intake days, with the cycle in its label.
  */
 final class ReportTimeline
 {
@@ -34,6 +34,8 @@ final class ReportTimeline
                 'name' => $medication->medicationName->name,
                 'start' => $medication->start_date->format('Y-m-d'),
                 'end' => $medication->end_date?->format('Y-m-d'),
+                'intake_days' => $medication->intake_days,
+                'break_days' => $medication->break_days,
                 'line' => $line,
             ];
         }
@@ -64,7 +66,8 @@ final class ReportTimeline
 
             $set = [];
             foreach ($intakes as $intake) {
-                if ($intake['start'] <= $date && ($intake['end'] === null || $intake['end'] >= $date)) {
+                if ($intake['start'] <= $date && ($intake['end'] === null || $intake['end'] >= $date)
+                    && MedicationCycle::isIntakeDay($intake['intake_days'], $intake['break_days'], $intake['start'], $date)) {
                     $set[] = $intake['line'];
                 }
             }

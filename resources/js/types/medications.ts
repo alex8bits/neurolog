@@ -6,7 +6,7 @@
 
 export type MedicationStatus = 'planned' | 'active' | 'finished';
 
-export type MedicationUnit = 'mg' | 'ml' | 'pil';
+export type MedicationUnit = 'pil' | 'mg' | 'ml';
 
 export type MedicationRow = {
     id: number;

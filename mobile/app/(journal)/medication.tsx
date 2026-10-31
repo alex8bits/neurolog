@@ -37,9 +37,9 @@ import { formatYmdDisplay, parseYmdLocal } from '@/utils/ymd';
 const NAME_MAX_LENGTH = 255;
 
 const UNIT_OPTIONS = [
+    { value: 'pil', label: 'таб' },
     { value: 'mg', label: 'мг' },
     { value: 'ml', label: 'мл' },
-    { value: 'pil', label: 'таб' },
 ] as const satisfies readonly { value: MedicationUnit; label: string }[];
 
 /** Единица из роут-параметра; неизвестное значение → мг. */

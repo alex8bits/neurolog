@@ -42,7 +42,8 @@ describe('createMedication', () => {
         const medication = {
             id: 7,
             ...input,
-            dosage: '750.00',
+            dosage: '750.00000',
+            medication_name_id: 3,
             status: 'active' as const,
             created_at: '2026-10-30T09:00:00.000000Z',
         };

@@ -10,9 +10,9 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import type { MedicationRow } from '@/types/medications';
+import type { MedicationNameRow, MedicationRow } from '@/types/medications';
 
-const props = defineProps<{ row: MedicationRow }>();
+const props = defineProps<{ row: MedicationRow; names: MedicationNameRow[] }>();
 
 const editOpen = ref(false);
 const deleteOpen = ref(false);
@@ -45,6 +45,6 @@ const deleteOpen = ref(false);
         </DropdownMenuContent>
     </DropdownMenu>
 
-    <MedicationFormDialog v-model:open="editOpen" :row="row" />
+    <MedicationFormDialog v-model:open="editOpen" :row="row" :names="names" />
     <DeleteMedicationDialog v-model:open="deleteOpen" :row="row" />
 </template>

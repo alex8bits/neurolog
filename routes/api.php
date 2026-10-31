@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\FeedbackController;
 use App\Http\Controllers\Api\V1\JournalExportController;
 use App\Http\Controllers\Api\V1\MedicationController;
+use App\Http\Controllers\Api\V1\MedicationNameController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\SeizureController;
 use Illuminate\Support\Facades\Route;
@@ -92,6 +93,19 @@ Route::middleware('auth:sanctum')->name('api.v1.')->group(function () {
     Route::delete('medications/{medication}', [MedicationController::class, 'destroy'])
         ->whereNumber('medication')
         ->name('medications.destroy');
+
+    Route::get('medication-names', [MedicationNameController::class, 'index'])->name('medication-names.index');
+
+    Route::post('medication-names', [MedicationNameController::class, 'store'])->name('medication-names.store');
+
+    // Параметр {medicationName} намеренно без route-model binding: владельца проверяет MedicationNameWriter.
+    Route::patch('medication-names/{medicationName}', [MedicationNameController::class, 'update'])
+        ->whereNumber('medicationName')
+        ->name('medication-names.update');
+
+    Route::delete('medication-names/{medicationName}', [MedicationNameController::class, 'destroy'])
+        ->whereNumber('medicationName')
+        ->name('medication-names.destroy');
 
     // Обратная связь: письмо владельцу проекта (config feedback.address);
     // анонимный флаг отправляет только текст. Лимит жёстче экспортных

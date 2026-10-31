@@ -172,8 +172,7 @@ class SeizurePeriodReportTest extends TestCase
     public function test_clips_to_today_and_infers_open_start_from_medication(): void
     {
         $user = User::factory()->create(['timezone' => 'UTC']);
-        Medication::factory()->for($user)->between('2026-05-15', null)->create([
-            'name' => 'Вигабатрин',
+        Medication::factory()->for($user)->between('2026-05-15', null)->named('Вигабатрин')->create([
             'dosage' => '500',
         ]);
         Seizure::factory()->for($user)->occurredAt('2026-05-17 08:15:00')->create();

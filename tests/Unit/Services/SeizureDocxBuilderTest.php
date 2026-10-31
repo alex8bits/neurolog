@@ -23,7 +23,7 @@ class SeizureDocxBuilderTest extends TestCase
     {
         $owner = User::factory()->create(['timezone' => 'Europe/Moscow']);
         // «&» и «<» в тексте не должны ломать document.xml.
-        Medication::factory()->for($owner)->between('2026-05-01', null)->create(['name' => 'Депакин & Хроно']);
+        Medication::factory()->for($owner)->between('2026-05-01', null)->named('Депакин & Хроно')->create();
         Seizure::factory()->for($owner)->occurredAt('2026-05-10 09:00:00')->create(['comment' => 'a < b']);
 
         $report = new SeizurePeriodReport(

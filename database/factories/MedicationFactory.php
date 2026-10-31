@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Enums\MedicationUnit;
 use App\Models\Medication;
+use App\Models\MedicationName;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -21,12 +22,28 @@ class MedicationFactory extends Factory
     {
         return [
             'user_id' => User::factory(),
-            'name' => fake()->word(),
-            'dosage' => fake()->randomFloat(2, 1, 1000),
+            'medication_name_id' => fn (array $attributes) => MedicationName::factory()->create(['user_id' => $attributes['user_id']])->id,
+            'dosage' => fake()->randomFloat(5, 1, 1000),
             'unit' => MedicationUnit::Mg,
             'start_date' => now()->subDays(10)->toDateString(),
             'end_date' => null,
         ];
+    }
+
+    /**
+     * Attach the intake to the owner's dictionary entry with this name (created on first use).
+     */
+    public function named(string $name): static
+    {
+        return $this->state(fn (array $attributes) => [
+            // user_id/name_search не fillable, поэтому не firstOrCreate: ищем по ключу, иначе forceCreate.
+            'medication_name_id' => fn (array $attributes) => (MedicationName::query()
+                ->where('user_id', $attributes['user_id'])
+                ->where('name_search', MedicationName::fold($name))
+                ->first()
+                ?? MedicationName::query()->forceCreate(['user_id' => $attributes['user_id'], 'name' => $name])
+            )->id,
+        ]);
     }
 
     /**

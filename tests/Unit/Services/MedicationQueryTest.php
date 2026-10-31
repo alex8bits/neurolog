@@ -95,7 +95,7 @@ class MedicationQueryTest extends TestCase
     {
         $factory = Medication::factory()->for($this->user)->between($start, $end);
 
-        return $name === null ? $factory->create() : $factory->create(['name' => $name]);
+        return $name === null ? $factory->create() : $factory->named($name)->create();
     }
 
     private function filters(?string $q = null, ?string $from = null, ?string $to = null): MedicationFilters

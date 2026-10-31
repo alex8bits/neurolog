@@ -16,6 +16,10 @@ class MedicationAuthorizationTest extends TestCase
             $this->postJson(route('api.v1.medications.store')),
             $this->patchJson(route('api.v1.medications.update', ['medication' => 1])),
             $this->deleteJson(route('api.v1.medications.destroy', ['medication' => 1])),
+            $this->getJson(route('api.v1.medication-names.index')),
+            $this->postJson(route('api.v1.medication-names.store')),
+            $this->patchJson(route('api.v1.medication-names.update', ['medicationName' => 1])),
+            $this->deleteJson(route('api.v1.medication-names.destroy', ['medicationName' => 1])),
         ];
 
         foreach ($responses as $response) {

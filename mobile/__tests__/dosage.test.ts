@@ -12,6 +12,12 @@ describe('formatDosage', () => {
     });
 });
 
+describe('formatDosage, пять знаков', () => {
+    it('сохраняет значимые дробные знаки', () => {
+        expect(formatDosage('0.00125', 'mg')).toBe('0,00125мг');
+    });
+});
+
 describe('normalizeDosageInput', () => {
     it('запятая превращается в точку', () => {
         expect(normalizeDosageInput('2,5')).toBe('2.5');

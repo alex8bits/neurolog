@@ -260,6 +260,7 @@ export default function MedicationsScreen() {
             params: {
                 id: String(medication.id),
                 name: medication.name,
+                medication_name_id: String(medication.medication_name_id),
                 dosage: medication.dosage,
                 unit: medication.unit,
                 start_date: medication.start_date,

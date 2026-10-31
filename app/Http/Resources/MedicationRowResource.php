@@ -35,9 +35,10 @@ class MedicationRowResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'name' => $this->name,
-            // Ready-to-use value for the dosage input of the edit dialog.
-            'dosage' => $this->dosage,
+            'medication_name_id' => $this->medication_name_id,
+            'name' => $this->medicationName->name,
+            // Ready-to-use value for the dosage input of the edit dialog (no trailing zeros: "750.00000" → "750").
+            'dosage' => MedicationDosage::plain($this->dosage),
             'dosage_label' => MedicationDosage::format($this->dosage, $this->unit),
             'unit' => $this->unit->value,
             // Ready-to-use values for `<input type="date">`.

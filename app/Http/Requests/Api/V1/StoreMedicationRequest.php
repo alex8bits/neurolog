@@ -28,7 +28,7 @@ class StoreMedicationRequest extends FormRequest
      *
      * Named so as not to shadow `FormRequest::attributes()` (validation labels).
      *
-     * @return array{name: string, dosage: string, unit: string, start_date: string, end_date: string|null}
+     * @return array{medication_name_id: int|null, name: string|null, dosage: string, unit: string, start_date: string, end_date: string|null}
      */
     public function medicationInput(): array
     {

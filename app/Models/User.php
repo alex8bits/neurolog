@@ -32,6 +32,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property Carbon|null $updated_at
  * @property-read Collection<int, Seizure> $seizures
  * @property-read Collection<int, Medication> $medications
+ * @property-read Collection<int, MedicationName> $medicationNames
  */
 #[Fillable(['name', 'email', 'timezone', 'password'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
@@ -72,6 +73,16 @@ class User extends Authenticatable implements PasskeyUser
     public function medications(): HasMany
     {
         return $this->hasMany(Medication::class);
+    }
+
+    /**
+     * The user's personal medication dictionary.
+     *
+     * @return HasMany<MedicationName, $this>
+     */
+    public function medicationNames(): HasMany
+    {
+        return $this->hasMany(MedicationName::class);
     }
 
     /**

@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Http\Requests\Medications\IndexMedicationsRequest;
 use App\Http\Requests\Medications\StoreMedicationRequest;
 use App\Http\Requests\Medications\UpdateMedicationRequest;
+use App\Http\Resources\MedicationNameRowResource;
 use App\Http\Resources\MedicationRowResource;
+use App\Services\MedicationNameQuery;
 use App\Services\MedicationQuery;
 use App\Services\MedicationWriter;
 use Illuminate\Http\RedirectResponse;
@@ -32,6 +34,7 @@ class MedicationController extends Controller
     public function __construct(
         private readonly MedicationQuery $query,
         private readonly MedicationWriter $writer,
+        private readonly MedicationNameQuery $names,
     ) {}
 
     /**
@@ -62,6 +65,7 @@ class MedicationController extends Controller
         return Inertia::render('Medications', [
             'medications' => MedicationRowResource::collection($paginator),
             'filters' => $filters->toArray(),
+            'medicationNames' => MedicationNameRowResource::collection($this->names->allForUser($user))->resolve(),
         ]);
     }
 

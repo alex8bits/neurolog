@@ -192,14 +192,28 @@ export type MedicationStatus = 'planned' | 'active' | 'finished';
 /** Лекарство пользователя (MedicationResource, API V1). */
 export interface Medication {
     id: number;
+    medication_name_id: number;
     name: string;
-    /** Строка с 2 знаками ("750.00") — точное значение decimal с сервера. */
+    /** Строка с 5 знаками ("750.00000") — точное значение decimal с сервера. */
     dosage: string;
     unit: MedicationUnit;
     start_date: string; // Y-m-d
     end_date: string | null; // Y-m-d; null — приём без даты окончания
     status: MedicationStatus;
     created_at: string | null;
+}
+
+/** Позиция личного справочника лекарств (MedicationNameResource, API V1). */
+export interface MedicationName {
+    id: number;
+    name: string;
+    medications_count: number;
+    created_at: string | null;
+}
+
+/** Тело GET /medication-names — весь справочник, без пагинации. */
+export interface MedicationNameListResponse {
+    data: MedicationName[];
 }
 
 /** Тело GET /medications — пагинатор Laravel; links клиенту не нужен. */
@@ -216,7 +230,10 @@ export interface MedicationResponse {
 /** Тело POST /medications и PATCH /medications/{id}; dosage — строка с
  *  точкой ("2.5"), см. normalizeDosageInput. */
 export interface MedicationInput {
-    name: string;
+    /** Ровно одно из двух: id выбранной позиции справочника или новое
+     *  название (сервер найдёт или создаст позицию без учёта регистра). */
+    medication_name_id?: number;
+    name?: string;
     dosage: string;
     unit: MedicationUnit;
     start_date: string; // Y-m-d

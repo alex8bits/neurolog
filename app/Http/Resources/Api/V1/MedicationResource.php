@@ -11,8 +11,9 @@ use Illuminate\Http\Resources\Json\JsonResource;
 /**
  * The stable JSON shape of a medication record.
  *
- * `user_id`, `name_search` and `deleted_at` are never exposed. `dosage` stays
- * the decimal string ("750.00") so the client never sees float noise.
+ * `user_id` and `deleted_at` are never exposed. `name` comes from the owner's
+ * dictionary entry (`medication_name_id`). `dosage` stays the decimal string
+ * with 5 digits ("750.00000") so the client never sees float noise.
  * `status` is computed against the `medications_today` request attribute set
  * by the controller (the same day `MedicationQuery` filtered and ordered by);
  * without it, today in the owner's profile timezone is used.
@@ -35,7 +36,8 @@ class MedicationResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'name' => $this->name,
+            'medication_name_id' => $this->medication_name_id,
+            'name' => $this->medicationName->name,
             'dosage' => $this->dosage,
             'unit' => $this->unit->value,
             'start_date' => $this->start_date->format('Y-m-d'),

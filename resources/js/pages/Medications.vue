@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { Plus } from '@lucide/vue';
+import { BookOpen, Plus } from '@lucide/vue';
 import { computed, ref } from 'vue';
+import MedicationNameController from '@/actions/App/Http/Controllers/MedicationNameController';
 import MedicationFilters from '@/components/medications/MedicationFilters.vue';
 import MedicationFormDialog from '@/components/medications/MedicationFormDialog.vue';
 import MedicationRowMenu from '@/components/medications/MedicationRowMenu.vue';
@@ -18,12 +19,14 @@ import {
 import type { Paginated } from '@/types/journal';
 import type {
     MedicationFilters as MedicationFiltersValue,
+    MedicationNameRow,
     MedicationRow,
 } from '@/types/medications';
 
 const props = defineProps<{
     medications: Paginated<MedicationRow>;
     filters: MedicationFiltersValue;
+    medicationNames: MedicationNameRow[];
 }>();
 
 const filtersPanel = ref<InstanceType<typeof MedicationFilters> | null>(null);
@@ -57,14 +60,23 @@ function resetFilters(): void {
         <div class="flex flex-wrap items-center justify-between gap-3">
             <h1 class="text-2xl font-extrabold">Медикаменты</h1>
 
-            <MedicationFormDialog>
-                <template #trigger>
-                    <Button>
-                        <Plus class="size-4" />
-                        Добавить
-                    </Button>
-                </template>
-            </MedicationFormDialog>
+            <div class="flex items-center gap-2">
+                <Button variant="outline" as-child>
+                    <Link :href="MedicationNameController.index()">
+                        <BookOpen class="size-4" />
+                        Справочник
+                    </Link>
+                </Button>
+
+                <MedicationFormDialog :names="medicationNames">
+                    <template #trigger>
+                        <Button>
+                            <Plus class="size-4" />
+                            Добавить
+                        </Button>
+                    </template>
+                </MedicationFormDialog>
+            </div>
         </div>
 
         <MedicationFilters ref="filtersPanel" :filters="filters" />
@@ -100,7 +112,10 @@ function resetFilters(): void {
                             <MedicationStatusBadge :status="row.status" />
                         </TableCell>
                         <TableCell class="pr-4 text-right">
-                            <MedicationRowMenu :row="row" />
+                            <MedicationRowMenu
+                                :row="row"
+                                :names="medicationNames"
+                            />
                         </TableCell>
                     </TableRow>
                 </TableBody>
@@ -122,7 +137,7 @@ function resetFilters(): void {
             class="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground"
         >
             Список пуст
-            <MedicationFormDialog>
+            <MedicationFormDialog :names="medicationNames">
                 <template #trigger>
                     <Button>
                         <Plus class="size-4" />

@@ -4,6 +4,7 @@ namespace Tests\Unit\Support;
 
 use App\Enums\MedicationUnit;
 use App\Models\Medication;
+use App\Models\MedicationName;
 use App\Support\ReportTimeline;
 use App\Support\SeizurePeriodDay;
 use Tests\TestCase;
@@ -70,12 +71,14 @@ class ReportTimelineTest extends TestCase
 
     private function medication(string $name, string $dosage, string $start, ?string $end): Medication
     {
-        return new Medication([
-            'name' => $name,
+        $medication = new Medication([
             'dosage' => $dosage,
             'unit' => MedicationUnit::Mg,
             'start_date' => $start,
             'end_date' => $end,
         ]);
+        $medication->setRelation('medicationName', new MedicationName(['name' => $name]));
+
+        return $medication;
     }
 }

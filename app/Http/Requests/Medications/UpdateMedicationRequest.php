@@ -27,7 +27,7 @@ class UpdateMedicationRequest extends FormRequest
     /**
      * Get the writer attributes built from the validated payload.
      *
-     * @return array{name: string, dosage: string, unit: string, start_date: string, end_date: string|null}
+     * @return array{medication_name_id: int|null, name: string|null, dosage: string, unit: string, start_date: string, end_date: string|null}
      */
     public function medicationInput(): array
     {

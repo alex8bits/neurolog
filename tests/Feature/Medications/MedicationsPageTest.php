@@ -3,6 +3,7 @@
 namespace Tests\Feature\Medications;
 
 use App\Models\Medication;
+use App\Models\MedicationName;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -29,8 +30,7 @@ class MedicationsPageTest extends TestCase
         $user = User::factory()->create(['timezone' => 'Europe/Moscow']);
         Medication::factory()->for($user)->planned()->create();
         Medication::factory()->for($user)->finished()->create();
-        $active = Medication::factory()->for($user)->between('2026-05-01', '2026-06-01')->create([
-            'name' => 'Депакин',
+        $active = Medication::factory()->for($user)->between('2026-05-01', '2026-06-01')->named('Депакин')->create([
             'dosage' => '750',
         ]);
 
@@ -44,7 +44,7 @@ class MedicationsPageTest extends TestCase
             ->where('filters.status', 'active')
             ->has('medications.data', 1)
             ->where('medications.data.0.id', $active->id)
-            ->where('medications.data.0.dosage', '750.00')
+            ->where('medications.data.0.dosage', '750')
             ->where('medications.data.0.dosage_label', '750мг')
             ->where('medications.data.0.start_label', '01.05.2026')
             ->where('medications.data.0.end_date', '2026-06-01')
@@ -56,12 +56,13 @@ class MedicationsPageTest extends TestCase
     public function test_user_can_create_a_medication(): void
     {
         $user = User::factory()->create();
+        $name = MedicationName::factory()->for($user)->create(['name' => 'Кеппра']);
 
         $response = $this
             ->actingAs($user)
             ->from(route('medications.index'))
             ->post(route('medications.store'), [
-                'name' => 'Кеппра',
+                'medication_name_id' => $name->id,
                 'dosage' => '2.5',
                 'unit' => 'ml',
                 'start_date' => '2026-05-01',
@@ -74,7 +75,7 @@ class MedicationsPageTest extends TestCase
         ]);
         $this->assertDatabaseHas('medications', [
             'user_id' => $user->id,
-            'name' => 'Кеппра',
+            'medication_name_id' => $name->id,
             'unit' => 'ml',
             'end_date' => null,
         ]);
@@ -83,13 +84,14 @@ class MedicationsPageTest extends TestCase
     public function test_user_can_update_their_own_medication(): void
     {
         $user = User::factory()->create();
-        $medication = Medication::factory()->for($user)->create(['name' => 'Старое']);
+        $medication = Medication::factory()->for($user)->named('Старое')->create();
+        $new = MedicationName::factory()->for($user)->create(['name' => 'Новое']);
 
         $response = $this
             ->actingAs($user)
             ->from(route('medications.index'))
             ->patch(route('medications.update', $medication), [
-                'name' => 'Новое',
+                'medication_name_id' => $new->id,
                 'dosage' => '500',
                 'unit' => 'mg',
                 'start_date' => '2026-05-01',
@@ -102,7 +104,7 @@ class MedicationsPageTest extends TestCase
         ]);
         $this->assertDatabaseHas('medications', [
             'id' => $medication->id,
-            'name' => 'Новое',
+            'medication_name_id' => $new->id,
             'end_date' => '2026-05-31',
         ]);
     }

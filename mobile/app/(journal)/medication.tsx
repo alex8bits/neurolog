@@ -3,12 +3,18 @@ import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useLayoutEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { listMedicationNames } from '@/api/medicationNames';
 import {
     createMedication,
     deleteMedication,
     updateMedication,
 } from '@/api/medications';
-import type { MedicationInput, MedicationUnit } from '@/api/types';
+import type {
+    MedicationInput,
+    MedicationName,
+    MedicationUnit,
+} from '@/api/types';
+import { MedicationNamePicker } from '@/components/medications/MedicationNamePicker';
 import { AppText } from '@/components/ui/AppText';
 import { DangerButton } from '@/components/ui/DangerButton';
 import { OutlineButton } from '@/components/ui/OutlineButton';
@@ -27,7 +33,7 @@ import {
 import { formatYmd } from '@/utils/time';
 import { formatYmdDisplay, parseYmdLocal } from '@/utils/ymd';
 
-/** Серверный лимит названия (name required|string|max:255). */
+/** Серверный лимит нового названия (name max:255). */
 const NAME_MAX_LENGTH = 255;
 
 const UNIT_OPTIONS = [
@@ -40,6 +46,7 @@ const UNIT_OPTIONS = [
 type MedicationScreenParams = {
     id?: string | string[];
     name?: string | string[];
+    medication_name_id?: string | string[];
     dosage?: string | string[];
     unit?: string | string[];
     start_date?: string | string[];
@@ -58,6 +65,7 @@ function firstParam(value: string | string[] | undefined): string {
 /** Поля формы, под которыми выводятся ошибки 422. */
 const FORM_FIELDS = new Set([
     'name',
+    'medication_name_id',
     'dosage',
     'unit',
     'start_date',
@@ -85,6 +93,18 @@ export default function MedicationScreen() {
     const id = Number(rawId);
 
     const [name, setName] = useState(() => firstParam(params.name));
+    const [medicationNameId, setMedicationNameId] = useState<number | null>(
+        () => {
+            const initial = Number(firstParam(params.medication_name_id));
+
+            return Number.isInteger(initial) && initial > 0 ? initial : null;
+        },
+    );
+    const [namesPickerOpen, setNamesPickerOpen] = useState(false);
+    const [names, setNames] = useState<MedicationName[]>([]);
+    const [namesLoaded, setNamesLoaded] = useState(false);
+    const [namesLoading, setNamesLoading] = useState(false);
+    const [namesError, setNamesError] = useState<string | null>(null);
     const [dosage, setDosage] = useState(() => {
         const initial = firstParam(params.dosage);
 
@@ -174,6 +194,35 @@ export default function MedicationScreen() {
         setFormError(GENERIC_ERROR_TEXT);
     }
 
+    async function openNamesPicker(): Promise<void> {
+        setNamesPickerOpen(true);
+
+        if (namesLoaded || namesLoading) {
+            return;
+        }
+
+        setNamesLoading(true);
+        setNamesError(null);
+
+        try {
+            setNames(await listMedicationNames());
+            setNamesLoaded(true);
+        } catch (error) {
+            setNamesError(
+                error instanceof ApiError
+                    ? userMessage(error)
+                    : GENERIC_ERROR_TEXT,
+            );
+        } finally {
+            setNamesLoading(false);
+        }
+    }
+
+    function clearNameErrors(): void {
+        clearError('name');
+        clearError('medication_name_id');
+    }
+
     function openPicker(target: 'start' | 'end'): void {
         const current = target === 'start' ? startDate : endDate;
 
@@ -187,7 +236,9 @@ export default function MedicationScreen() {
         }
 
         const input: MedicationInput = {
-            name: name.trim(),
+            ...(medicationNameId !== null
+                ? { medication_name_id: medicationNameId }
+                : { name: name.trim() }),
             dosage: normalizeDosageInput(dosage),
             unit,
             start_date: startDate,
@@ -283,14 +334,51 @@ export default function MedicationScreen() {
             contentContainerStyle={styles.content}
             keyboardShouldPersistTaps="handled"
         >
-            <TextField
-                label="Название"
-                value={name}
-                maxLength={NAME_MAX_LENGTH}
-                error={fieldErrors.name?.join(' ')}
-                onChangeText={(value) => {
-                    setName(value);
-                    clearError('name');
+            <View style={styles.field}>
+                <PickerField
+                    label="Название"
+                    value={name !== '' ? name : 'Выберите лекарство'}
+                    invalid={
+                        !!(fieldErrors.medication_name_id || fieldErrors.name)
+                    }
+                    style={styles.picker}
+                    onPress={() => {
+                        void openNamesPicker();
+                    }}
+                />
+                {fieldErrors.medication_name_id || fieldErrors.name ? (
+                    <AppText
+                        variant="caption"
+                        color="danger"
+                        style={styles.fieldError}
+                    >
+                        {(
+                            fieldErrors.medication_name_id ?? fieldErrors.name
+                        ).join(' ')}
+                    </AppText>
+                ) : null}
+            </View>
+
+            <MedicationNamePicker
+                visible={namesPickerOpen}
+                names={names}
+                loading={namesLoading}
+                error={namesError}
+                selectedId={medicationNameId}
+                onSelect={(entry) => {
+                    setMedicationNameId(entry.id);
+                    setName(entry.name);
+                    setNamesPickerOpen(false);
+                    clearNameErrors();
+                }}
+                onAddNew={(text) => {
+                    setMedicationNameId(null);
+                    setName(text.slice(0, NAME_MAX_LENGTH));
+                    setNamesPickerOpen(false);
+                    clearNameErrors();
+                }}
+                onClose={() => {
+                    setNamesPickerOpen(false);
                 }}
             />
 

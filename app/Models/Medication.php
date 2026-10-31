@@ -7,7 +7,6 @@ use App\Enums\MedicationUnit;
 use Carbon\CarbonImmutable;
 use Database\Factories\MedicationFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -16,8 +15,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 /**
  * @property int $id
  * @property int $user_id
- * @property string $name
- * @property string $name_search
+ * @property int $medication_name_id
  * @property string $dosage
  * @property MedicationUnit $unit
  * @property CarbonImmutable $start_date
@@ -26,9 +24,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property CarbonImmutable|null $updated_at
  * @property CarbonImmutable|null $deleted_at
  * @property-read User $user
+ * @property-read MedicationName $medicationName
  */
-#[Fillable(['name', 'dosage', 'unit', 'start_date', 'end_date'])]
-#[Hidden(['name_search'])]
+#[Fillable(['medication_name_id', 'dosage', 'unit', 'start_date', 'end_date'])]
 class Medication extends Model
 {
     /** @use HasFactory<MedicationFactory> */
@@ -42,21 +40,11 @@ class Medication extends Model
     protected function casts(): array
     {
         return [
-            'dosage' => 'decimal:2',
+            'dosage' => 'decimal:5',
             'unit' => MedicationUnit::class,
             'start_date' => 'date:Y-m-d',
             'end_date' => 'date:Y-m-d',
         ];
-    }
-
-    /**
-     * Keep the case-folded search column in sync with the name.
-     */
-    protected static function booted(): void
-    {
-        static::saving(function (self $medication): void {
-            $medication->name_search = mb_strtolower($medication->name);
-        });
     }
 
     /**
@@ -67,6 +55,16 @@ class Medication extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * The owner's dictionary entry this intake refers to.
+     *
+     * @return BelongsTo<MedicationName, $this>
+     */
+    public function medicationName(): BelongsTo
+    {
+        return $this->belongsTo(MedicationName::class);
     }
 
     /**

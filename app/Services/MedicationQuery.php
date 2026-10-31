@@ -5,10 +5,12 @@ namespace App\Services;
 use App\Concerns\ResolvesUserTimezone;
 use App\Enums\MedicationStatus;
 use App\Models\Medication;
+use App\Models\MedicationName;
 use App\Models\User;
 use App\Support\MedicationFilters;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -32,7 +34,8 @@ class MedicationQuery
     private const FINISHED_ORDER = 'CASE WHEN end_date IS NOT NULL AND end_date < ? THEN end_date END DESC';
 
     /**
-     * Case-insensitive substring match on the folded name.
+     * Case-insensitive substring match on the folded name, on the column
+     * `medication_names.name_search` (applied inside the `medicationName` relation).
      *
      * `!` is the escape character because it reads the same in SQLite and
      * MySQL: a backslash inside a MySQL string literal (default sql_mode)
@@ -68,7 +71,9 @@ class MedicationQuery
         $query = $user->medications();
 
         if ($filters->q !== null && trim($filters->q) !== '') {
-            $query->whereRaw(self::SEARCH_WHERE, ['%'.$this->escapeLike(mb_strtolower(trim($filters->q))).'%']);
+            $pattern = '%'.$this->escapeLike(mb_strtolower(trim($filters->q))).'%';
+
+            $query->whereHas('medicationName', fn ($q) => $q->whereRaw(self::SEARCH_WHERE, [$pattern]));
         }
 
         $this->applyOverlap($query, $filters->from, $filters->to);
@@ -77,12 +82,13 @@ class MedicationQuery
 
         // Name and id as the last keys keep pagination deterministic.
         return $query
+            ->with('medicationName')
             ->orderByRaw(MedicationStatus::rankSql(), [$today, $today])
             ->orderByRaw(self::PLANNED_ORDER, [$today])
             ->orderByRaw(self::ACTIVE_ORDER, [$today, $today])
             ->orderByRaw(self::FINISHED_ORDER, [$today])
-            ->orderBy('name')
-            ->orderBy('id')
+            ->orderBy($this->nameOrder())
+            ->orderBy('medications.id')
             ->paginate($perPage);
     }
 
@@ -97,7 +103,11 @@ class MedicationQuery
 
         $this->applyOverlap($query, $from, $to);
 
-        return $query->orderBy('name')->orderBy('dosage')->orderBy('id')->get();
+        return $query->with('medicationName')
+            ->orderBy($this->nameOrder())
+            ->orderBy('dosage')
+            ->orderBy('medications.id')
+            ->get();
     }
 
     /**
@@ -126,6 +136,18 @@ class MedicationQuery
         if ($to !== null) {
             $query->where('start_date', '<=', $to);
         }
+    }
+
+    /**
+     * Correlated subquery: the dictionary name of the medication row, for ordering.
+     *
+     * @return Builder<MedicationName>
+     */
+    private function nameOrder(): Builder
+    {
+        return MedicationName::query()
+            ->select('name')
+            ->whereColumn('medication_names.id', 'medications.medication_name_id');
     }
 
     /**

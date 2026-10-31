@@ -16,7 +16,7 @@ final class ReportTimeline
      * @param  string  $from  inclusive 'Y-m-d'
      * @param  string  $to  inclusive 'Y-m-d'
      * @param  array<string, SeizurePeriodDay>  $seizureDays  keyed by 'Y-m-d'
-     * @param  iterable<Medication>  $medications  overlapping [from, to]
+     * @param  iterable<Medication>  $medications  overlapping [from, to], with the `medicationName` relation loaded
      * @return list<ReportBlock>
      */
     public static function build(string $from, string $to, array $seizureDays, iterable $medications): array
@@ -24,10 +24,10 @@ final class ReportTimeline
         $intakes = [];
         foreach ($medications as $medication) {
             $intakes[] = [
-                'name' => $medication->name,
+                'name' => $medication->medicationName->name,
                 'start' => $medication->start_date->format('Y-m-d'),
                 'end' => $medication->end_date?->format('Y-m-d'),
-                'line' => "{$medication->name} ".MedicationDosage::format($medication->dosage, $medication->unit),
+                'line' => "{$medication->medicationName->name} ".MedicationDosage::format($medication->dosage, $medication->unit),
             ];
         }
         usort($intakes, fn (array $a, array $b): int => strcmp(mb_strtolower($a['name']), mb_strtolower($b['name']))

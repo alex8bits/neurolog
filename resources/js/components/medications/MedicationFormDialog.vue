@@ -3,6 +3,7 @@ import { Form, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import MedicationController from '@/actions/App/Http/Controllers/MedicationController';
 import InputError from '@/components/InputError.vue';
+import MedicationNameCombobox from '@/components/medications/MedicationNameCombobox.vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -23,12 +24,18 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import type { MedicationRow, MedicationUnit } from '@/types/medications';
+import type {
+    MedicationNameRow,
+    MedicationRow,
+    MedicationUnit,
+} from '@/types/medications';
 import { todayYmd } from '@/utils/dayGroups';
 
 const props = defineProps<{
     /** Задан — режим правки этой записи; не задан — создание. */
     row?: MedicationRow;
+    /** Справочник названий пользователя. */
+    names: MedicationNameRow[];
 }>();
 
 // Управляемый (v-model:open из меню строки) либо самодостаточный (слот trigger).
@@ -53,7 +60,6 @@ const formDefinition = computed(() =>
 // Содержимое диалога монтируется при каждом открытии, поэтому «сегодня»
 // (в поясе профиля) берётся на момент открытия.
 const defaults = computed(() => ({
-    name: props.row?.name ?? '',
     dosage: props.row?.dosage ?? '',
     unit: props.row?.unit ?? 'mg',
     startDate: props.row?.start_date ?? todayYmd(page.props.auth.user.timezone),
@@ -95,14 +101,16 @@ const defaults = computed(() => ({
                         class="text-xs font-bold tracking-wide text-muted-foreground uppercase"
                         >Название</Label
                     >
-                    <Input
+                    <MedicationNameCombobox
                         id="medication-name"
-                        name="name"
-                        :default-value="defaults.name"
-                        maxlength="255"
-                        required
+                        :options="names"
+                        :initial-id="row?.medication_name_id ?? null"
+                        :initial-name="row?.name ?? ''"
+                        :invalid="!!(errors.medication_name_id || errors.name)"
                     />
-                    <InputError :message="errors.name" />
+                    <InputError
+                        :message="errors.medication_name_id ?? errors.name"
+                    />
                 </div>
 
                 <div class="grid grid-cols-[minmax(0,1fr)_7rem] gap-3">
@@ -116,8 +124,8 @@ const defaults = computed(() => ({
                             id="medication-dosage"
                             name="dosage"
                             type="number"
-                            step="0.01"
-                            min="0.01"
+                            step="any"
+                            min="0.00001"
                             inputmode="decimal"
                             :default-value="defaults.dosage"
                             required

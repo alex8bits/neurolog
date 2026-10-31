@@ -9,7 +9,7 @@ use Illuminate\Foundation\Http\FormRequest;
 /**
  * Validate an API payload replacing a medication.
  *
- * PUT semantics: the client always sends every field (`name`, `dosage`,
+ * PUT semantics: the client always sends every field (`medication_name_id` or `name`, `dosage`,
  * `unit`, `start_date`, `end_date`); `end_date === null` clears the end date.
  * The rules are exactly those of {@see StoreMedicationRequest} — both
  * operations share `MedicationValidationRules`.
@@ -33,7 +33,7 @@ class UpdateMedicationRequest extends FormRequest
      *
      * Named so as not to shadow `FormRequest::attributes()` (validation labels).
      *
-     * @return array{name: string, dosage: string, unit: string, start_date: string, end_date: string|null}
+     * @return array{medication_name_id: int|null, name: string|null, dosage: string, unit: string, start_date: string, end_date: string|null}
      */
     public function medicationInput(): array
     {

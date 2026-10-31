@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api\V1;
 
 use App\Models\Medication;
+use App\Models\MedicationName;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -23,18 +24,38 @@ class MedicationApiTest extends TestCase
         ]);
 
         $response->assertCreated();
-        $response->assertJsonPath('data.dosage', '750.00');
+        $response->assertJsonPath('data.dosage', '750.00000');
+        $response->assertJsonPath('data.name', 'Вигабатрин');
+        $this->assertNotNull($response->json('data.medication_name_id'));
         $response->assertJsonPath('data.status', 'active');
         $response->assertJsonPath('data.end_date', null);
+    }
+
+    public function test_store_by_name_reuses_the_dictionary_entry_case_insensitively(): void
+    {
+        $user = User::factory()->create();
+        $entry = MedicationName::factory()->for($user)->create(['name' => 'Вигабатрин']);
+        $this->actingAs($user);
+
+        $response = $this->postJson(route('api.v1.medications.store'), [
+            'name' => 'вигабатрин',
+            'dosage' => '750',
+            'unit' => 'mg',
+            'start_date' => now()->subDays(5)->toDateString(),
+        ]);
+
+        $response->assertCreated();
+        $response->assertJsonPath('data.medication_name_id', $entry->id);
+        $this->assertSame(1, MedicationName::count());
     }
 
     public function test_index_filters_by_status_and_name(): void
     {
         $user = User::factory()->create();
-        $match = Medication::factory()->for($user)->planned()->create(['name' => 'Вигабатрин']);
-        Medication::factory()->for($user)->create(['name' => 'Вигабатрин']);
-        Medication::factory()->for($user)->planned()->create(['name' => 'Кеппра']);
-        Medication::factory()->planned()->create(['name' => 'Вигабатрин']);
+        $match = Medication::factory()->for($user)->planned()->named('Вигабатрин')->create();
+        Medication::factory()->for($user)->named('Вигабатрин')->create();
+        Medication::factory()->for($user)->planned()->named('Кеппра')->create();
+        Medication::factory()->planned()->named('Вигабатрин')->create();
         $this->actingAs($user);
 
         $response = $this->getJson(route('api.v1.medications.index', [
@@ -85,7 +106,7 @@ class MedicationApiTest extends TestCase
 
     public function test_foreign_medication_cannot_be_updated(): void
     {
-        $foreign = Medication::factory()->create(['name' => 'Чужое']);
+        $foreign = Medication::factory()->named('Чужое')->create();
         $this->actingAs(User::factory()->create());
 
         $this->patchJson(route('api.v1.medications.update', ['medication' => $foreign->id]), [
@@ -96,6 +117,6 @@ class MedicationApiTest extends TestCase
             'end_date' => null,
         ])->assertNotFound();
 
-        $this->assertSame('Чужое', $foreign->fresh()?->name);
+        $this->assertSame('Чужое', $foreign->fresh()?->medicationName->name);
     }
 }

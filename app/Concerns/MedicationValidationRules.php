@@ -13,6 +13,11 @@ trait MedicationValidationRules
     use JournalValidationRules, ReadsValidatedInput;
 
     /**
+     * The authenticated user (provided by the FormRequest using this trait).
+     */
+    abstract public function user($guard = null);
+
+    /**
      * Get the validation rules used to validate medication payloads.
      *
      * @return array<string, array<int, ValidationRule|array<mixed>|string|object>>
@@ -20,8 +25,14 @@ trait MedicationValidationRules
     protected function medicationRules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:255'],
-            'dosage' => ['required', 'numeric', 'gt:0', 'max:999999.99', 'decimal:0,2'],
+            'medication_name_id' => [
+                'nullable',
+                'integer',
+                'required_without:name',
+                Rule::exists('medication_names', 'id')->where('user_id', $this->user()?->getAuthIdentifier()),
+            ],
+            'name' => ['nullable', 'string', 'max:255', 'required_without:medication_name_id'],
+            'dosage' => ['required', 'numeric', 'gt:0', 'max:999999.99999', 'decimal:0,5'],
             'unit' => ['required', Rule::enum(MedicationUnit::class)],
             'start_date' => ['required', 'date_format:Y-m-d'],
             'end_date' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:start_date'],
@@ -45,15 +56,21 @@ trait MedicationValidationRules
     /**
      * Build the writer attributes from the validated payload.
      *
-     * @return array{name: string, dosage: string, unit: string, start_date: string, end_date: string|null}
+     * `medication_name_id` wins over `name`; `name` is only kept when no id is given.
+     *
+     * @return array{medication_name_id: int|null, name: string|null, dosage: string, unit: string, start_date: string, end_date: string|null}
      */
     protected function medicationAttributes(): array
     {
         /** @var array<string, mixed> $validated */
         $validated = $this->validated();
+        $nameId = $validated['medication_name_id'] ?? null;
+        $nameId = is_numeric($nameId) ? (int) $nameId : null;
+        $name = $nameId === null ? trim($this->stringValue($validated, 'name')) : '';
 
         return [
-            'name' => trim($this->stringValue($validated, 'name')),
+            'medication_name_id' => $nameId,
+            'name' => $name !== '' ? $name : null,
             'dosage' => $this->stringValue($validated, 'dosage'),
             'unit' => $this->stringValue($validated, 'unit'),
             'start_date' => $this->stringValue($validated, 'start_date'),

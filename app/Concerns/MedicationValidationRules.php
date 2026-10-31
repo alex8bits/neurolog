@@ -36,6 +36,10 @@ trait MedicationValidationRules
             'unit' => ['required', Rule::enum(MedicationUnit::class)],
             'start_date' => ['required', 'date_format:Y-m-d'],
             'end_date' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:start_date'],
+            // Цикл «N дней приём, M дней перерыв»: пара приходит вместе или не приходит вовсе (одно поле без другого — 422)
+            // Старый мобильный клиент её не шлёт — тогда ключей нет и цикл записи не меняется. null/null — ежедневно.
+            'intake_days' => ['nullable', 'integer', 'min:1', 'max:365', 'required_with:break_days'],
+            'break_days' => ['nullable', 'integer', 'min:0', 'max:365', 'required_with:intake_days'],
         ];
     }
 
@@ -58,7 +62,12 @@ trait MedicationValidationRules
      *
      * `medication_name_id` wins over `name`; `name` is only kept when no id is given.
      *
-     * @return array{medication_name_id: int|null, name: string|null, dosage: string, unit: string, start_date: string, end_date: string|null}
+     * The `cycle` key depends on the payload: without `intake_days`/`break_days`
+     * it is absent (the stored cycle stays); with a numeric pair it holds the
+     * normalized pair (`break_days = 0` forces `intake_days = 1`); with a `null`
+     * pair it holds the daily cycle 1/0.
+     *
+     * @return array{medication_name_id: int|null, name: string|null, dosage: string, unit: string, start_date: string, end_date: string|null, cycle?: array{intake_days: int, break_days: int}}
      */
     protected function medicationAttributes(): array
     {
@@ -68,7 +77,7 @@ trait MedicationValidationRules
         $nameId = is_numeric($nameId) ? (int) $nameId : null;
         $name = $nameId === null ? trim($this->stringValue($validated, 'name')) : '';
 
-        return [
+        $attributes = [
             'medication_name_id' => $nameId,
             'name' => $name !== '' ? $name : null,
             'dosage' => $this->stringValue($validated, 'dosage'),
@@ -76,6 +85,17 @@ trait MedicationValidationRules
             'start_date' => $this->stringValue($validated, 'start_date'),
             'end_date' => $this->filledString('end_date'),
         ];
+
+        if (array_key_exists('intake_days', $validated) || array_key_exists('break_days', $validated)) {
+            $intake = is_numeric($validated['intake_days'] ?? null) ? (int) $validated['intake_days'] : 1;
+            $break = is_numeric($validated['break_days'] ?? null) ? (int) $validated['break_days'] : 0;
+            if ($break === 0) {
+                $intake = 1;
+            }
+            $attributes['cycle'] = ['intake_days' => $intake, 'break_days' => $break];
+        }
+
+        return $attributes;
     }
 
     /**

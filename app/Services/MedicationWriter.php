@@ -17,20 +17,24 @@ class MedicationWriter
      * `medication_name_id` wins over `name`; a bare `name` is found-or-created
      * in the owner's dictionary (old mobile clients send only `name`).
      *
-     * @param  array{medication_name_id: int|null, name: string|null, dosage: string, unit: string, start_date: string, end_date: string|null}  $attributes
+     * @param  array{medication_name_id: int|null, name: string|null, dosage: string, unit: string, start_date: string, end_date: string|null, cycle?: array{intake_days: int, break_days: int}}  $attributes
      */
     public function create(User $user, array $attributes): Medication
     {
         return DB::transaction(function () use ($user, $attributes): Medication {
             $entry = $this->resolveName($user, $attributes);
 
-            $medication = $user->medications()->create([
+            $values = [
                 'medication_name_id' => $entry->id,
                 'dosage' => $attributes['dosage'],
                 'unit' => $attributes['unit'],
                 'start_date' => $attributes['start_date'],
                 'end_date' => $attributes['end_date'],
-            ]);
+            ];
+            if (isset($attributes['cycle'])) {
+                $values += $attributes['cycle'];
+            }
+            $medication = $user->medications()->create($values);
             $medication->setRelation('medicationName', $entry);
 
             return $medication;
@@ -39,14 +43,15 @@ class MedicationWriter
 
     /**
      * Replace the attributes of one of the owner's medications (PUT semantics:
-     * `end_date => null` clears the end date).
+     * `end_date => null` clears the end date, except the cycle: without `cycle`
+     * the stored `intake_days`/`break_days` are kept).
      *
      * Resolved through the owner relation so a foreign, missing or deleted id
      * throws `ModelNotFoundException` (404) and leaves the row intact (and
      * creates no dictionary entry). `$id` stays a `string` for the same reason
      * as in `SeizureWriter::update()`.
      *
-     * @param  array{medication_name_id: int|null, name: string|null, dosage: string, unit: string, start_date: string, end_date: string|null}  $attributes
+     * @param  array{medication_name_id: int|null, name: string|null, dosage: string, unit: string, start_date: string, end_date: string|null, cycle?: array{intake_days: int, break_days: int}}  $attributes
      */
     public function update(User $user, string $id, array $attributes): Medication
     {
@@ -54,13 +59,17 @@ class MedicationWriter
             $medication = $user->medications()->findOrFail($id);
             $entry = $this->resolveName($user, $attributes);
 
-            $medication->update([
+            $values = [
                 'medication_name_id' => $entry->id,
                 'dosage' => $attributes['dosage'],
                 'unit' => $attributes['unit'],
                 'start_date' => $attributes['start_date'],
                 'end_date' => $attributes['end_date'],
-            ]);
+            ];
+            if (isset($attributes['cycle'])) {
+                $values += $attributes['cycle'];
+            }
+            $medication->update($values);
             $medication->setRelation('medicationName', $entry);
 
             return $medication;

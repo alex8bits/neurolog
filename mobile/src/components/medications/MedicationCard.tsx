@@ -4,6 +4,7 @@ import type { Medication } from '@/api/types';
 import { StatusBadge, statusLabel } from '@/components/medications/StatusBadge';
 import { AppText } from '@/components/ui/AppText';
 import { colors, radius, spacing } from '@/theme/tokens';
+import { formatCycle } from '@/utils/cycle';
 import { formatDosage } from '@/utils/dosage';
 import { formatYmdDisplay } from '@/utils/ymd';
 
@@ -26,11 +27,12 @@ function periodText(medication: Medication): string {
 export function MedicationCard({ medication, onPress }: Props) {
     const dosage = formatDosage(medication.dosage, medication.unit);
     const period = periodText(medication);
+    const cycle = formatCycle(medication.intake_days, medication.break_days);
 
     return (
         <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`${medication.name}, ${dosage}, ${period}, ${statusLabel(medication.status)}`}
+            accessibilityLabel={`${medication.name}, ${dosage}${cycle !== null ? `, ${cycle}` : ''}, ${period}, ${statusLabel(medication.status)}`}
             onPress={() => {
                 onPress(medication);
             }}
@@ -43,6 +45,11 @@ export function MedicationCard({ medication, onPress }: Props) {
                 <StatusBadge status={medication.status} />
             </View>
             <AppText variant="label">{dosage}</AppText>
+            {cycle !== null ? (
+                <AppText variant="label" color="muted">
+                    {cycle}
+                </AppText>
+            ) : null}
             <AppText variant="label" color="muted">
                 {period}
             </AppText>

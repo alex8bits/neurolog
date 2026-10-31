@@ -13,6 +13,9 @@ use Illuminate\Foundation\Http\FormRequest;
  * `unit`, `start_date`, `end_date`); `end_date === null` clears the end date.
  * The rules are exactly those of {@see StoreMedicationRequest} — both
  * operations share `MedicationValidationRules`.
+ *
+ * `intake_days`/`break_days` are the exception: when both are absent the stored cycle is kept
+ * (old mobile clients don't know it); `null` resets to daily.
  */
 class UpdateMedicationRequest extends FormRequest
 {
@@ -33,7 +36,7 @@ class UpdateMedicationRequest extends FormRequest
      *
      * Named so as not to shadow `FormRequest::attributes()` (validation labels).
      *
-     * @return array{medication_name_id: int|null, name: string|null, dosage: string, unit: string, start_date: string, end_date: string|null}
+     * @return array{medication_name_id: int|null, name: string|null, dosage: string, unit: string, start_date: string, end_date: string|null, cycle?: array{intake_days: int, break_days: int}}
      */
     public function medicationInput(): array
     {

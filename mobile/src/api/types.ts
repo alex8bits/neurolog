@@ -199,6 +199,9 @@ export interface Medication {
     unit: MedicationUnit;
     start_date: string; // Y-m-d
     end_date: string | null; // Y-m-d; null — приём без даты окончания
+    /** Цикл «N дней приём, M дней перерыв» от start_date; break_days = 0 — ежедневно. */
+    intake_days: number;
+    break_days: number;
     status: MedicationStatus;
     created_at: string | null;
 }
@@ -238,6 +241,9 @@ export interface MedicationInput {
     unit: MedicationUnit;
     start_date: string; // Y-m-d
     end_date: string | null; // Y-m-d
+    /** Всегда пара; ежедневно — 1/0. */
+    intake_days: number;
+    break_days: number;
 }
 
 /** Фильтры GET /medications; from/to — Y-m-d, пересечение с периодом приёма. */

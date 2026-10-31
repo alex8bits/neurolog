@@ -17,6 +17,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * `status` is computed against the `medications_today` request attribute set
  * by the controller (the same day `MedicationQuery` filtered and ordered by);
  * without it, today in the owner's profile timezone is used.
+ * `break_days = 0` means daily intake.
  *
  * @mixin Medication
  */
@@ -42,6 +43,8 @@ class MedicationResource extends JsonResource
             'unit' => $this->unit->value,
             'start_date' => $this->start_date->format('Y-m-d'),
             'end_date' => $this->end_date?->format('Y-m-d'),
+            'intake_days' => $this->intake_days,
+            'break_days' => $this->break_days,
             'status' => $this->status($this->today($request))->value,
             'created_at' => $this->created_at?->toIso8601ZuluString('microsecond'),
         ];

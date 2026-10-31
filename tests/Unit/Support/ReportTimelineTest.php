@@ -57,6 +57,17 @@ class ReportTimelineTest extends TestCase
         $this->assertTrue($blocks[0]->quiet);
     }
 
+    public function test_cycle_is_appended_to_the_label_and_kept_on_every_day(): void
+    {
+        $blocks = ReportTimeline::build('2026-10-25', '2026-10-27', [], [
+            $this->medication('Вигабатрин', '750', '2026-10-25', '2026-10-27', 1, 2),
+        ]);
+
+        $this->assertCount(1, $blocks);
+        $this->assertSame('25.10.2026 - 27.10.2026', $blocks[0]->label);
+        $this->assertSame(['Вигабатрин 750мг (приём 1 дн. / перерыв 2 дн.)'], $blocks[0]->medications);
+    }
+
     /**
      * @return list<Medication>
      */
@@ -69,13 +80,15 @@ class ReportTimelineTest extends TestCase
         ];
     }
 
-    private function medication(string $name, string $dosage, string $start, ?string $end): Medication
+    private function medication(string $name, string $dosage, string $start, ?string $end, int $intakeDays = 1, int $breakDays = 0): Medication
     {
         $medication = new Medication([
             'dosage' => $dosage,
             'unit' => MedicationUnit::Mg,
             'start_date' => $start,
             'end_date' => $end,
+            'intake_days' => $intakeDays,
+            'break_days' => $breakDays,
         ]);
         $medication->setRelation('medicationName', new MedicationName(['name' => $name]));
 

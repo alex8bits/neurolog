@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { Form, usePage } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import MedicationController from '@/actions/App/Http/Controllers/MedicationController';
 import InputError from '@/components/InputError.vue';
 import MedicationNameCombobox from '@/components/medications/MedicationNameCombobox.vue';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
     Dialog,
     DialogClose,
@@ -49,6 +50,9 @@ const UNIT_OPTIONS: { value: MedicationUnit; label: string }[] = [
     { value: 'ml', label: 'мл' },
 ];
 
+// Единица по умолчанию для новой записи — таблетки.
+const DEFAULT_UNIT: MedicationUnit = 'pil';
+
 const formDefinition = computed(() =>
     props.row
         ? MedicationController.update.form(props.row.id)
@@ -62,10 +66,39 @@ const formDefinition = computed(() =>
 // (в поясе профиля) берётся на момент открытия.
 const defaults = computed(() => ({
     dosage: props.row?.dosage ?? '',
-    unit: props.row?.unit ?? 'mg',
+    unit: props.row?.unit ?? DEFAULT_UNIT,
     startDate: props.row?.start_date ?? todayYmd(page.props.auth.user.timezone),
     endDate: props.row?.end_date ?? '',
+    cyclic: (props.row?.break_days ?? 0) > 0,
+    intakeDays: String(props.row?.intake_days ?? 1),
+    // Стартовое значение при включении чекбокса у ежедневной записи.
+    breakDays:
+        props.row && props.row.break_days > 0
+            ? String(props.row.break_days)
+            : '2',
 }));
+
+// Единица и периодичность — управляемые значения: компонент живёт между
+// открытиями диалога (монтируется только содержимое), поэтому при каждом
+// открытии сбрасываем их к значениям записи / дефолтам, а не полагаемся на
+// неуправляемые default-value внутри неуправляемой <Form>.
+const unit = ref<string>(defaults.value.unit);
+const cyclic = ref<boolean>(defaults.value.cyclic);
+
+watch(
+    [open, () => props.row?.unit, () => props.row?.break_days],
+    ([isOpen]) => {
+        if (isOpen) {
+            unit.value = defaults.value.unit;
+            cyclic.value = defaults.value.cyclic;
+        }
+    },
+    { immediate: true },
+);
+
+function onCyclicChange(value: boolean | 'indeterminate'): void {
+    cyclic.value = value === true;
+}
 </script>
 
 <template>
@@ -139,7 +172,7 @@ const defaults = computed(() => ({
                             class="text-xs font-bold tracking-wide text-muted-foreground uppercase"
                             >Единица</Label
                         >
-                        <Select name="unit" :default-value="defaults.unit">
+                        <Select v-model="unit" name="unit">
                             <SelectTrigger id="medication-unit" class="w-full">
                                 <SelectValue />
                             </SelectTrigger>
@@ -191,6 +224,70 @@ const defaults = computed(() => ({
                         />
                         <InputError :message="errors.end_date" />
                     </div>
+                </div>
+
+                <div class="grid gap-3">
+                    <div class="flex items-center gap-2">
+                        <Checkbox
+                            id="medication-cyclic"
+                            :model-value="cyclic"
+                            @update:model-value="onCyclicChange"
+                        />
+                        <Label for="medication-cyclic">Не каждый день</Label>
+                    </div>
+
+                    <template v-if="cyclic">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="grid gap-2">
+                                <Label
+                                    for="medication-intake-days"
+                                    class="text-xs font-bold tracking-wide text-muted-foreground uppercase"
+                                    >Дней приёма</Label
+                                >
+                                <Input
+                                    id="medication-intake-days"
+                                    name="intake_days"
+                                    type="number"
+                                    min="1"
+                                    max="365"
+                                    step="1"
+                                    inputmode="numeric"
+                                    :default-value="defaults.intakeDays"
+                                />
+                            </div>
+
+                            <div class="grid gap-2">
+                                <Label
+                                    for="medication-break-days"
+                                    class="text-xs font-bold tracking-wide text-muted-foreground uppercase"
+                                    >Дней перерыва</Label
+                                >
+                                <Input
+                                    id="medication-break-days"
+                                    name="break_days"
+                                    type="number"
+                                    min="1"
+                                    max="365"
+                                    step="1"
+                                    inputmode="numeric"
+                                    :default-value="defaults.breakDays"
+                                />
+                            </div>
+                        </div>
+                        <p class="text-sm text-muted-foreground">
+                            Отсчёт от даты начала: первый день — приём.
+                        </p>
+                    </template>
+                    <template v-else>
+                        <!-- Веб всегда шлёт пару: выключенный чекбокс явно сбрасывает цикл. -->
+                        <input type="hidden" name="intake_days" value="1" />
+                        <input type="hidden" name="break_days" value="0" />
+                    </template>
+
+                    <InputError
+                        v-if="errors.intake_days || errors.break_days"
+                        :message="errors.intake_days ?? errors.break_days"
+                    />
                 </div>
 
                 <DialogFooter class="gap-2">

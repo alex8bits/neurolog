@@ -19,6 +19,11 @@ export type MedicationRow = {
     end_date: string | null;
     start_label: string;
     end_label: string | null;
+    /** Цикл «N дней приём, M дней перерыв»; break_days = 0 — ежедневно. */
+    intake_days: number;
+    break_days: number;
+    /** «приём 1 дн. / перерыв 2 дн.»; null — ежедневно. */
+    cycle_label: string | null;
     status: MedicationStatus;
 };
 

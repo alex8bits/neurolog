@@ -38,6 +38,8 @@ describe('createMedication', () => {
             unit: 'mg' as const,
             start_date: '2026-10-01',
             end_date: null,
+            intake_days: 1,
+            break_days: 0,
         };
         const medication = {
             id: 7,

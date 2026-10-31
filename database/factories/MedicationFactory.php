@@ -25,6 +25,8 @@ class MedicationFactory extends Factory
             'medication_name_id' => fn (array $attributes) => MedicationName::factory()->create(['user_id' => $attributes['user_id']])->id,
             'dosage' => fake()->randomFloat(5, 1, 1000),
             'unit' => MedicationUnit::Mg,
+            'intake_days' => 1,
+            'break_days' => 0,
             'start_date' => now()->subDays(10)->toDateString(),
             'end_date' => null,
         ];
@@ -70,6 +72,17 @@ class MedicationFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'start_date' => $start,
             'end_date' => $end,
+        ]);
+    }
+
+    /**
+     * Indicate that the intake follows an "N days on, M days off" cycle.
+     */
+    public function cycle(int $intake, int $break): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'intake_days' => $intake,
+            'break_days' => $break,
         ]);
     }
 }

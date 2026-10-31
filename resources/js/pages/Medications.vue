@@ -105,7 +105,15 @@ function resetFilters(): void {
                         <TableCell class="pl-4 font-semibold whitespace-normal">
                             {{ row.name }}
                         </TableCell>
-                        <TableCell>{{ row.dosage_label }}</TableCell>
+                        <TableCell>
+                            <div>{{ row.dosage_label }}</div>
+                            <div
+                                v-if="row.cycle_label"
+                                class="text-xs text-muted-foreground"
+                            >
+                                {{ row.cycle_label }}
+                            </div>
+                        </TableCell>
                         <TableCell>{{ row.start_label }}</TableCell>
                         <TableCell>{{ row.end_label ?? '—' }}</TableCell>
                         <TableCell>

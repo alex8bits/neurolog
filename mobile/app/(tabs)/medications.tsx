@@ -265,6 +265,8 @@ export default function MedicationsScreen() {
                 unit: medication.unit,
                 start_date: medication.start_date,
                 end_date: medication.end_date ?? '',
+                intake_days: String(medication.intake_days),
+                break_days: String(medication.break_days),
             },
         });
     }

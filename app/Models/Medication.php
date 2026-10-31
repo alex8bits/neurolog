@@ -18,6 +18,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int $medication_name_id
  * @property string $dosage
  * @property MedicationUnit $unit
+ * @property int $intake_days
+ * @property int $break_days
  * @property CarbonImmutable $start_date
  * @property CarbonImmutable|null $end_date
  * @property CarbonImmutable|null $created_at
@@ -26,11 +28,21 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property-read User $user
  * @property-read MedicationName $medicationName
  */
-#[Fillable(['medication_name_id', 'dosage', 'unit', 'start_date', 'end_date'])]
+#[Fillable(['medication_name_id', 'dosage', 'unit', 'intake_days', 'break_days', 'start_date', 'end_date'])]
 class Medication extends Model
 {
     /** @use HasFactory<MedicationFactory> */
     use HasFactory, SoftDeletes;
+
+    /**
+     * Defaults for a new intake: daily (matches the column defaults).
+     *
+     * @var array<string, int>
+     */
+    protected $attributes = [
+        'intake_days' => 1,
+        'break_days' => 0,
+    ];
 
     /**
      * Get the attributes that should be cast.
@@ -42,6 +54,8 @@ class Medication extends Model
         return [
             'dosage' => 'decimal:5',
             'unit' => MedicationUnit::class,
+            'intake_days' => 'integer',
+            'break_days' => 'integer',
             'start_date' => 'date:Y-m-d',
             'end_date' => 'date:Y-m-d',
         ];

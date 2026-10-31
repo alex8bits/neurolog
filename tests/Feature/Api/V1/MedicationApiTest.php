@@ -21,6 +21,8 @@ class MedicationApiTest extends TestCase
             'dosage' => '750',
             'unit' => 'mg',
             'start_date' => now()->subDays(5)->toDateString(),
+            'intake_days' => 1,
+            'break_days' => 2,
         ]);
 
         $response->assertCreated();
@@ -29,6 +31,8 @@ class MedicationApiTest extends TestCase
         $this->assertNotNull($response->json('data.medication_name_id'));
         $response->assertJsonPath('data.status', 'active');
         $response->assertJsonPath('data.end_date', null);
+        $response->assertJsonPath('data.intake_days', 1);
+        $response->assertJsonPath('data.break_days', 2);
     }
 
     public function test_store_by_name_reuses_the_dictionary_entry_case_insensitively(): void
@@ -90,6 +94,25 @@ class MedicationApiTest extends TestCase
         $response->assertJsonPath('data.end_date', null);
         $response->assertJsonPath('data.status', 'active');
         $this->assertNull($medication->fresh()?->end_date);
+    }
+
+    public function test_update_without_cycle_fields_keeps_the_cycle(): void
+    {
+        $user = User::factory()->create();
+        $medication = Medication::factory()->for($user)->cycle(1, 2)->create();
+        $this->actingAs($user);
+
+        $response = $this->patchJson(route('api.v1.medications.update', ['medication' => $medication->id]), [
+            'name' => 'Депакин',
+            'dosage' => 300,
+            'unit' => 'mg',
+            'start_date' => $medication->start_date->format('Y-m-d'),
+            'end_date' => null,
+        ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('data.break_days', 2);
+        $this->assertSame(2, $medication->fresh()?->break_days);
     }
 
     public function test_destroy_soft_deletes_the_medication(): void

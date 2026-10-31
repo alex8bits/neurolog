@@ -23,6 +23,7 @@ import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { TextField } from '@/components/ui/TextField';
 import { colors, spacing } from '@/theme/tokens';
+import { parseCycleDays } from '@/utils/cycle';
 import { dosageToInput, normalizeDosageInput } from '@/utils/dosage';
 import {
     ApiError,
@@ -42,9 +43,15 @@ const UNIT_OPTIONS = [
     { value: 'ml', label: 'мл' },
 ] as const satisfies readonly { value: MedicationUnit; label: string }[];
 
-/** Единица из роут-параметра; неизвестное значение → мг. */
+/** Единица для новой записи (и для неизвестного значения параметра). */
+const DEFAULT_UNIT: MedicationUnit = 'pil';
+
+/** Единица из роут-параметра; пустое/неизвестное значение → таб. */
 function parseUnit(value: string): MedicationUnit {
-    return UNIT_OPTIONS.find((option) => option.value === value)?.value ?? 'mg';
+    return (
+        UNIT_OPTIONS.find((option) => option.value === value)?.value ??
+        DEFAULT_UNIT
+    );
 }
 
 /** Роут-параметры от карточки списка; значения теоретически массивы
@@ -57,6 +64,8 @@ type MedicationScreenParams = {
     unit?: string | string[];
     start_date?: string | string[];
     end_date?: string | string[];
+    intake_days?: string | string[];
+    break_days?: string | string[];
 };
 
 /** Первое значение роут-параметра; отсутствующий — пустая строка. */
@@ -76,7 +85,16 @@ const FORM_FIELDS = new Set([
     'unit',
     'start_date',
     'end_date',
+    'intake_days',
+    'break_days',
 ]);
+
+const CYCLE_OPTIONS = [
+    { value: 'daily', label: 'Каждый день' },
+    { value: 'cycle', label: 'Циклом' },
+] as const;
+
+const CYCLE_DAYS_ERROR = 'Целое число дней от 1 до 365.';
 
 const YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -129,6 +147,19 @@ export default function MedicationScreen() {
 
         return YMD_RE.test(initial) ? initial : null;
     });
+    const [cyclic, setCyclic] = useState(
+        () => Number(firstParam(params.break_days)) > 0,
+    );
+    const [intakeInput, setIntakeInput] = useState(() =>
+        Number(firstParam(params.break_days)) > 0
+            ? firstParam(params.intake_days)
+            : '1',
+    );
+    const [breakInput, setBreakInput] = useState(() =>
+        Number(firstParam(params.break_days)) > 0
+            ? firstParam(params.break_days)
+            : '2',
+    );
 
     const [submitting, setSubmitting] = useState(false);
     const [deleting, setDeleting] = useState(false);
@@ -241,6 +272,19 @@ export default function MedicationScreen() {
             return;
         }
 
+        const intake = cyclic ? parseCycleDays(intakeInput) : 1;
+        const brk = cyclic ? parseCycleDays(breakInput) : 0;
+
+        if (intake === null || brk === null) {
+            setFormError(null);
+            setFieldErrors({
+                ...(intake === null ? { intake_days: [CYCLE_DAYS_ERROR] } : {}),
+                ...(brk === null ? { break_days: [CYCLE_DAYS_ERROR] } : {}),
+            });
+
+            return;
+        }
+
         const input: MedicationInput = {
             ...(medicationNameId !== null
                 ? { medication_name_id: medicationNameId }
@@ -249,6 +293,8 @@ export default function MedicationScreen() {
             unit,
             start_date: startDate,
             end_date: endDate,
+            intake_days: intake,
+            break_days: brk,
         };
 
         setSubmitting(true);
@@ -477,6 +523,51 @@ export default function MedicationScreen() {
                             Без даты окончания
                         </AppText>
                     </Pressable>
+                ) : null}
+            </View>
+
+            <View style={styles.field}>
+                <SegmentedControl
+                    options={CYCLE_OPTIONS}
+                    value={cyclic ? 'cycle' : 'daily'}
+                    onChange={(value) => {
+                        setCyclic(value === 'cycle');
+                        clearError('intake_days');
+                        clearError('break_days');
+                    }}
+                />
+                {cyclic ? (
+                    <>
+                        <TextField
+                            label="Дней приёма"
+                            value={intakeInput}
+                            keyboardType="number-pad"
+                            maxLength={3}
+                            error={fieldErrors.intake_days?.join(' ')}
+                            onChangeText={(value) => {
+                                setIntakeInput(value);
+                                clearError('intake_days');
+                            }}
+                        />
+                        <TextField
+                            label="Дней перерыва"
+                            value={breakInput}
+                            keyboardType="number-pad"
+                            maxLength={3}
+                            error={fieldErrors.break_days?.join(' ')}
+                            onChangeText={(value) => {
+                                setBreakInput(value);
+                                clearError('break_days');
+                            }}
+                        />
+                        <AppText
+                            variant="caption"
+                            color="muted"
+                            style={styles.fieldError}
+                        >
+                            Отсчёт от даты начала: первый день — приём.
+                        </AppText>
+                    </>
                 ) : null}
             </View>
 

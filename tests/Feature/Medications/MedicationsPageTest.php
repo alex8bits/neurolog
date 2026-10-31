@@ -30,7 +30,7 @@ class MedicationsPageTest extends TestCase
         $user = User::factory()->create(['timezone' => 'Europe/Moscow']);
         Medication::factory()->for($user)->planned()->create();
         Medication::factory()->for($user)->finished()->create();
-        $active = Medication::factory()->for($user)->between('2026-05-01', '2026-06-01')->named('Депакин')->create([
+        $active = Medication::factory()->for($user)->between('2026-05-01', '2026-06-01')->cycle(1, 2)->named('Депакин')->create([
             'dosage' => '750',
         ]);
 
@@ -48,6 +48,7 @@ class MedicationsPageTest extends TestCase
             ->where('medications.data.0.dosage_label', '750мг')
             ->where('medications.data.0.start_label', '01.05.2026')
             ->where('medications.data.0.end_date', '2026-06-01')
+            ->where('medications.data.0.cycle_label', 'приём 1 дн. / перерыв 2 дн.')
             ->where('medications.data.0.status', 'active')
             ->has('medications.meta'),
         );
@@ -66,6 +67,8 @@ class MedicationsPageTest extends TestCase
                 'dosage' => '2.5',
                 'unit' => 'ml',
                 'start_date' => '2026-05-01',
+                'intake_days' => '1',
+                'break_days' => '2',
                 'end_date' => null,
             ]);
 
@@ -77,6 +80,8 @@ class MedicationsPageTest extends TestCase
             'user_id' => $user->id,
             'medication_name_id' => $name->id,
             'unit' => 'ml',
+            'intake_days' => 1,
+            'break_days' => 2,
             'end_date' => null,
         ]);
     }

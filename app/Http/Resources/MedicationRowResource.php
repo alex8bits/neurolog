@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Models\Medication;
 use App\Services\MedicationQuery;
+use App\Support\MedicationCycle;
 use App\Support\MedicationDosage;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -46,6 +47,9 @@ class MedicationRowResource extends JsonResource
             'end_date' => $this->end_date?->format('Y-m-d'),
             'start_label' => $this->start_date->format('d.m.Y'),
             'end_label' => $this->end_date?->format('d.m.Y'),
+            'intake_days' => $this->intake_days,
+            'break_days' => $this->break_days,
+            'cycle_label' => MedicationCycle::label($this->intake_days, $this->break_days),
             'status' => $this->resource->status($this->today($request))->value,
         ];
     }

@@ -1,4 +1,4 @@
-# Мобильный клиент «ЭпиЛог»
+# Мобильный клиент «NeuroLog»
 
 > Статус: предложение (без кода). Отдельный репозиторий, не этот Laravel-проект.
 > Серверный контракт уже есть: JSON API `/api/v1` (Sanctum + refresh, seizures create/list/update/delete).

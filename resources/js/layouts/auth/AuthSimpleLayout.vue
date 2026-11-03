@@ -24,7 +24,7 @@ const { appVersion } = useAppDownload();
                         class="flex items-center gap-2.5 text-[17px] font-extrabold"
                     >
                         <AppLogo />
-                        ЭпиЛог
+                        NeuroLog
                     </Link>
                     <div class="space-y-2 text-center">
                         <h1 class="text-[26px] leading-tight font-extrabold">

@@ -1,4 +1,4 @@
-# План разработки мобильного клиента «График приступов»
+# План разработки мобильного клиента «ЭпиЛог»
 
 > Раскладка: код и конфиги приложения лежат в этом репозитории в каталоге `mobile/`.
 > Серверный контракт — Laravel JSON API под `/api/v1` (Sanctum + refresh).
@@ -77,7 +77,7 @@ mobile/
 1. `npx create-expo-app mobile --template blank-typescript` (или эквивалент через `npm create expo`). Альтернативно — минимальный ручной `package.json` + `app.json`, без шаблона, чтобы не тащить чужой мусор.
 2. `tsconfig.json` со strict, `paths` под `@/*` → `src/*`.
 3. ESLint + Prettier, идентичные настройкам корня (`npm run lint`, `npm run format:check`).
-4. `app.json`: имя «График приступов», bundle id (Android `package`), иконки, splash, `android.package`.
+4. `app.json`: имя «ЭпиЛог», bundle id (Android `package`), иконки, splash, `android.package`.
 5. `eas.json` с тремя профилями: `development` (включает dev-client), `preview` (APK для раздачи), `production` (AAB).
 6. `.gitignore` дополняем `mobile/.expo/`, `mobile/dist/`, `mobile/node_modules/`.
 7. README в `mobile/README.md`: как поднять локально, какие URL ставить для эмулятора/устройства.

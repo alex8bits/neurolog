@@ -1,9 +1,9 @@
 {
     "expo": {
-        "name": "График приступов",
+        "name": "ЭпиЛог",
         "slug": "seizure",
         "scheme": "seizure",
-        "version": "0.0.25",
+        "version": "0.0.26",
         "orientation": "portrait",
         "userInterfaceStyle": "light",
         "icon": "./assets/images/icon.png",
@@ -14,7 +14,7 @@
         },
         "android": {
             "package": "com.alex8bits.seizure",
-            "versionCode": 25,
+            "versionCode": 26,
             "adaptiveIcon": {
                 "foregroundImage": "./assets/images/adaptive-icon.png",
                 "monochromeImage": "./assets/images/adaptive-icon.png",

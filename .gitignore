@@ -58,3 +58,9 @@ mobile/expo-env.d.ts
 *.key
 *.mobileprovision
 *.orig.*
+
+/.claude
+/.mavis
+/.opencode
+/.zcode
+/.cursor
